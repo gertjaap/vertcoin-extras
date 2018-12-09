@@ -84,9 +84,10 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 			Value:    uint64(txo.Value),
 			PkScript: txo.PkScript,
 		}
+		keyHash := util.KeyHashFromPkScript(txo.PkScript)
+
 		if amount > 0 {
 			var oatxo OpenAssetUtxo
-			keyHash := util.KeyHashFromPkScript(txo.PkScript)
 			oatxo.Ours = bytes.Equal(keyHash, w.pubKeyHash[:])
 			oatxo.Utxo = utxo
 			oatxo.AssetValue = amount
@@ -108,7 +109,9 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 			}
 			w.registerAssetUtxo(oatxo)
 		} else {
-			w.registerUtxo(utxo)
+			if bytes.Equal(keyHash, w.pubKeyHash[:]) {
+				w.registerUtxo(utxo)
+			}
 		}
 	}
 
