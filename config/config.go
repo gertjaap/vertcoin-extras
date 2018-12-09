@@ -13,7 +13,7 @@ type Config struct {
 	RpcUser     string
 	RpcPassword string
 	Port        uint16
-	Cors		bool
+	Cors        bool
 }
 
 func InitConfig() (*Config, error) {
@@ -27,8 +27,8 @@ func InitConfig() (*Config, error) {
 
 func (c *Config) DefaultConfig() string {
 	defaultConfig := ""
-	defaultConfig += "network=regtest\n"
-	defaultConfig += "rpchost=localhost:18443\n"
+	defaultConfig += "network=testnet\n"
+	defaultConfig += "rpchost=localhost:15889\n"
 	defaultConfig += "rpcuser=vtc\n"
 	defaultConfig += "rpcpassword=vtc\n"
 	defaultConfig += "port=27888\n"
