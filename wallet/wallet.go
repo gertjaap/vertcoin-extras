@@ -11,22 +11,26 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
+	"github.com/gertjaap/vertcoin-openassets/config"
 	"github.com/gertjaap/vertcoin-openassets/util"
 	"github.com/mit-dci/lit/bech32"
 )
 
 type Wallet struct {
 	rpcClient  *rpcclient.Client
+	config     *config.Config
 	utxos      []Utxo
 	assetUtxos []OpenAssetUtxo
+	assets     []OpenAsset
 	privateKey *btcec.PrivateKey
 	pubKey     *btcec.PublicKey
 	pubKeyHash [20]byte
 }
 
-func NewWallet(c *rpcclient.Client) *Wallet {
+func NewWallet(c *rpcclient.Client, conf *config.Config) *Wallet {
 	w := new(Wallet)
 	w.rpcClient = c
+	w.config = conf
 	return w
 }
 
@@ -53,11 +57,11 @@ func (w *Wallet) InitKey() error {
 }
 
 func (w *Wallet) VertcoinAddress() (string, error) {
-	return bech32.SegWitV0Encode("bcrt", w.pubKeyHash[:])
+	return bech32.SegWitV0Encode(w.config.Network.VtcAddressPrefix, w.pubKeyHash[:])
 }
 
 func (w *Wallet) AssetsAddress() (string, error) {
-	return bech32.SegWitV0Encode("avtc", w.pubKeyHash[:])
+	return bech32.SegWitV0Encode(w.config.Network.AssetAddressPrefix, w.pubKeyHash[:])
 }
 
 func (w *Wallet) Balance() uint64 {
@@ -82,20 +86,8 @@ func (w *Wallet) AssetBalance(assetID []byte) uint64 {
 	return value
 }
 
-func (w *Wallet) Assets() [][]byte {
-	retVal := make([][]byte, 0)
-	for _, au := range w.assetUtxos {
-		found := false
-		for _, b := range retVal {
-			if bytes.Equal(au.AssetID, b) {
-				found = true
-			}
-		}
-		if !found {
-			retVal = append(retVal, au.AssetID)
-		}
-	}
-	return retVal
+func (w *Wallet) Assets() []OpenAsset {
+	return w.assets
 }
 
 func (w *Wallet) ProcessTransaction(tx *wire.MsgTx) {
@@ -146,10 +138,19 @@ func (w *Wallet) registerAssetUtxo(utxo OpenAssetUtxo) {
 	w.assetUtxos = append(w.assetUtxos, utxo)
 }
 
+func (w *Wallet) registerAsset(asset OpenAsset) {
+	w.assets = append(w.assets, asset)
+}
+
 func (w *Wallet) FindUtxoFromTxIn(txi *wire.TxIn) (Utxo, error) {
 	for _, out := range w.utxos {
 		if txi.PreviousOutPoint.Hash.IsEqual(&out.TxHash) && txi.PreviousOutPoint.Index == out.Outpoint {
 			return out, nil
+		}
+	}
+	for _, aout := range w.assetUtxos {
+		if txi.PreviousOutPoint.Hash.IsEqual(&aout.Utxo.TxHash) && txi.PreviousOutPoint.Index == aout.Utxo.Outpoint {
+			return aout.Utxo, nil
 		}
 	}
 	return Utxo{}, fmt.Errorf("Utxo not found")

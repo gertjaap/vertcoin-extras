@@ -11,7 +11,7 @@ import (
 	"github.com/gertjaap/vertcoin-openassets/util"
 )
 
-const MINOUTPUT uint64 = 500
+const MINOUTPUT uint64 = 1000
 
 func isOpenAssetMarkerData(b []byte) bool {
 	if b[0] == 0x4f && b[1] == 0x41 && b[2] == 0x01 && b[3] == 0x00 { // Open Asset 1.0
@@ -34,9 +34,36 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 		amounts = append(amounts, leb128.MustReadVarUint64(reader))
 	}
 
-	fmt.Printf("Extracted %d amounts\n", len(amounts))
+	metadata, _ := wire.ReadVarBytes(reader, 0, 150, "")
+	assetTicker := ""
+	assetDecimals := uint64(0)
+	if len(metadata) > 0 {
+		mdbuf := bytes.NewBuffer(metadata)
+		mdreader := bufio.NewReader(mdbuf)
 
-	// TODO: Verify if total inputs match total transfer outputs.
+		assetTicker, _ = wire.ReadVarString(mdreader, 0)
+		assetDecimals, _ = wire.ReadVarInt(mdreader, 0)
+	}
+	// Fetch the assetID and total amount of inputs
+	inputAssetId, totalInputAmount := w.getAssetIDAndTotalAmount(tx)
+
+	totalTransferOutputs := uint64(0)
+	// Verify if total inputs matches the total
+	for i, _ := range tx.TxOut {
+		if i > txoIndex { // transfer
+			amount := uint64(0)
+			if len(amounts) > i-1 {
+				amount = amounts[i-1]
+			}
+			totalTransferOutputs += amount
+		}
+	}
+
+	if totalTransferOutputs > totalInputAmount {
+		// Don't process - invalid TX
+		fmt.Printf("Transaction totals %d in outputs, but only %d as input - ignoring\n", totalTransferOutputs, totalInputAmount)
+		return
+	}
 
 	for i, txo := range tx.TxOut {
 		amountIdx := i
@@ -63,8 +90,21 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 			oatxo.Ours = bytes.Equal(keyHash, w.pubKeyHash[:])
 			oatxo.Utxo = utxo
 			oatxo.AssetValue = amount
-			txHash := tx.TxHash()
-			oatxo.AssetID = btcutil.Hash160(txHash[:])
+			if i < txoIndex { // Issuance
+				// Register the new asset
+				txHash := tx.TxHash()
+				oatxo.AssetID = btcutil.Hash160(txHash[:])
+
+				w.registerAsset(OpenAsset{
+					AssetID: oatxo.AssetID,
+					Metadata: OpenAssetMetadata{
+						Decimals: uint8(assetDecimals),
+						Ticker:   assetTicker,
+					},
+				})
+			} else {
+				oatxo.AssetID = inputAssetId
+			}
 			w.registerAssetUtxo(oatxo)
 		} else {
 			w.registerUtxo(utxo)
@@ -72,7 +112,28 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 	}
 
 	w.markTxInputsAsSpent(tx)
+	w.markOpenAssetTxInputsAsSpent(tx)
+}
 
+func (w *Wallet) getAssetIDAndTotalAmount(tx *wire.MsgTx) ([]byte, uint64) {
+	assetID := []byte{}
+	var totalAmount uint64
+
+	for _, in := range tx.TxIn {
+		for _, out := range w.assetUtxos {
+			if in.PreviousOutPoint.Hash.IsEqual(&out.Utxo.TxHash) && in.PreviousOutPoint.Index == out.Utxo.Outpoint {
+				if bytes.Equal([]byte{}, assetID) {
+					assetID = out.AssetID
+				}
+				if bytes.Equal(out.AssetID, assetID) {
+					totalAmount += out.AssetValue
+				}
+				break
+			}
+		}
+	}
+
+	return assetID, totalAmount
 }
 
 func extractOpenAssetMarkerData(tx *wire.MsgTx) ([]byte, int) {
@@ -104,9 +165,16 @@ func IsOpenAssetTransaction(tx *wire.MsgTx) bool {
 	return pos >= 0
 }
 
-func GenerateOpenAssetTx(w *Wallet, tx OpenAssetTransaction) (*wire.MsgTx, error) {
+func (w *Wallet) GenerateOpenAssetTx(tx OpenAssetTransaction) (*wire.MsgTx, error) {
 	oatx := wire.NewMsgTx(1)
 	neededInputs := uint64(100000) // minfee
+
+	if len(tx.Transfers) > 0 {
+		err := w.addOpenAssetInputsAndChange(&tx, tx.Transfers[0].AssetID)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	// first we add the OA inputs
 	for _, oai := range tx.AssetInputs {
@@ -135,8 +203,18 @@ func GenerateOpenAssetTx(w *Wallet, tx OpenAssetTransaction) (*wire.MsgTx, error
 		leb128.WriteVarUint64(writer, oat.Value)
 	}
 
-	wire.WriteVarInt(writer, 0, uint64(len(tx.Metadata)))
-	writer.Write(tx.Metadata)
+	var metadataBuf bytes.Buffer
+	if (len(tx.Metadata.Ticker) + int(tx.Metadata.Decimals)) > 0 {
+		mdw := bufio.NewWriter(&metadataBuf)
+		wire.WriteVarString(mdw, 0, tx.Metadata.Ticker)
+		wire.WriteVarInt(mdw, 0, uint64(tx.Metadata.Decimals))
+		mdw.Flush()
+	}
+
+	metadataBytes := metadataBuf.Bytes()
+	fmt.Printf("Built %d metadata bytes: %x\n", len(metadataBytes), metadataBytes)
+	wire.WriteVarBytes(writer, 0, metadataBuf.Bytes())
+
 	writer.Flush()
 	var scriptBuf bytes.Buffer
 	scriptBuf.WriteByte(0x6A) // OP_RETURN
@@ -157,4 +235,57 @@ func GenerateOpenAssetTx(w *Wallet, tx OpenAssetTransaction) (*wire.MsgTx, error
 	}
 
 	return oatx, nil
+}
+
+func (w *Wallet) addOpenAssetInputsAndChange(tx *OpenAssetTransaction, assetID []byte) error {
+	totalNeeded := uint64(0)
+	for _, oat := range tx.Transfers {
+		totalNeeded += oat.Value
+	}
+
+	totalAdded := uint64(0)
+	assetUtxosToAdd := []OpenAssetUtxo{}
+	for _, autxo := range w.assetUtxos {
+		if autxo.Ours && bytes.Equal(autxo.AssetID, assetID) {
+			totalAdded += autxo.AssetValue
+			assetUtxosToAdd = append(assetUtxosToAdd, autxo)
+		} else {
+			fmt.Printf("Skipping autxo with asset ID [%x], value [%d], ours [%t]\n", autxo.AssetID, autxo.AssetValue, autxo.Ours)
+		}
+	}
+
+	if totalAdded < totalNeeded {
+		return fmt.Errorf("Insufficient asset balance. Wanted %d got %d", totalNeeded, totalAdded)
+	}
+
+	for _, autxo := range assetUtxosToAdd {
+		tx.AssetInputs = append(tx.AssetInputs, autxo)
+	}
+
+	if totalAdded > totalNeeded {
+		// Change output
+		tx.Transfers = append(tx.Transfers, OpenAssetTransferOutput{
+			AssetID:      assetID,
+			RecipientPkh: w.MyPKH(),
+			Value:        totalAdded - totalNeeded,
+		})
+	}
+
+	return nil
+}
+
+func (w *Wallet) markOpenAssetTxInputsAsSpent(tx *wire.MsgTx) {
+	for _, in := range tx.TxIn {
+		removeIndex := -1
+		for j, out := range w.assetUtxos {
+			if in.PreviousOutPoint.Hash.IsEqual(&out.Utxo.TxHash) && in.PreviousOutPoint.Index == out.Utxo.Outpoint {
+				// Spent!
+				removeIndex = j
+				break
+			}
+		}
+		if removeIndex >= 0 {
+			w.assetUtxos = append(w.assetUtxos[:removeIndex], w.assetUtxos[removeIndex+1:]...)
+		}
+	}
 }

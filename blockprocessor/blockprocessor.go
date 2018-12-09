@@ -7,24 +7,27 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/gertjaap/vertcoin-openassets/config"
 	"github.com/gertjaap/vertcoin-openassets/wallet"
 )
 
 type BlockProcessor struct {
 	wallet    *wallet.Wallet
+	config    *config.Config
 	rpcClient *rpcclient.Client
 }
 
-func NewBlockProcessor(w *wallet.Wallet, c *rpcclient.Client) *BlockProcessor {
+func NewBlockProcessor(w *wallet.Wallet, c *rpcclient.Client, conf *config.Config) *BlockProcessor {
 	bp := new(BlockProcessor)
 	bp.wallet = w
 	bp.rpcClient = c
+	bp.config = conf
 	return bp
 }
 
 func (bp *BlockProcessor) Loop() {
 	client := bp.rpcClient
-	lastHash := chainhash.Hash{}
+	lastHash := bp.config.Network.StartHash
 
 	for {
 		time.Sleep(time.Second)
@@ -34,7 +37,7 @@ func (bp *BlockProcessor) Loop() {
 			continue
 		}
 
-		if bestHash.IsEqual(&lastHash) {
+		if bestHash.IsEqual(lastHash) {
 			continue
 		}
 

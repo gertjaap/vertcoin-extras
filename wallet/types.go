@@ -35,5 +35,15 @@ type OpenAssetTransaction struct {
 	Issuances     []OpenAssetIssuanceOutput
 	Transfers     []OpenAssetTransferOutput
 	ChangeAddress [20]byte
-	Metadata      []byte
+	Metadata      OpenAssetMetadata
+}
+
+type OpenAssetMetadata struct {
+	Ticker   string
+	Decimals uint8
+}
+
+type OpenAsset struct {
+	AssetID  []byte
+	Metadata OpenAssetMetadata
 }

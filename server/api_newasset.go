@@ -1,8 +1,6 @@
 package server
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,8 +9,9 @@ import (
 )
 
 type NewAssetParameters struct {
-	Metadata    string
 	TotalSupply uint64
+	Decimals    uint8
+	Ticker      string
 }
 
 type NewAssetResult struct {
@@ -29,13 +28,14 @@ func (h *HttpServer) NewAsset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var tx wallet.OpenAssetTransaction
-	tx.Metadata = []byte(params.Metadata)
+	tx.Metadata.Decimals = params.Decimals
+	tx.Metadata.Ticker = params.Ticker
 	tx.Issuances = append(tx.Issuances, wallet.OpenAssetIssuanceOutput{
 		Value:        params.TotalSupply,
 		RecipientPkh: h.wallet.MyPKH(),
 	})
 
-	wireTx, err := wallet.GenerateOpenAssetTx(h.wallet, tx)
+	wireTx, err := h.wallet.GenerateOpenAssetTx(tx)
 	if err != nil {
 		h.writeError(w, fmt.Errorf("Error decoding json: %s", err.Error()))
 		return
@@ -46,12 +46,6 @@ func (h *HttpServer) NewAsset(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, fmt.Errorf("Error decoding json: %s", err.Error()))
 		return
 	}
-
-	var buf bytes.Buffer
-	writer := bufio.NewWriter(&buf)
-	wireTx.Serialize(writer)
-	writer.Flush()
-	fmt.Printf("Hex transaction:\n%x\n", buf.Bytes())
 
 	txid, err := h.wallet.SendTransaction(wireTx)
 	if err != nil {
