@@ -10,3 +10,9 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# key and conf from running this on a dev machine should not be checked in
+privkey.hex
+vertcoin-openassets.conf
+server/static/
+releases/
