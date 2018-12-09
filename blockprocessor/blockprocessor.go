@@ -2,29 +2,29 @@ package blockprocessor
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/gertjaap/vertcoin-openassets/openassets"
+	"github.com/gertjaap/vertcoin-openassets/wallet"
 )
 
-func Loop() {
+type BlockProcessor struct {
+	wallet    *wallet.Wallet
+	rpcClient *rpcclient.Client
+}
+
+func NewBlockProcessor(w *wallet.Wallet, c *rpcclient.Client) *BlockProcessor {
+	bp := new(BlockProcessor)
+	bp.wallet = w
+	bp.rpcClient = c
+	return bp
+}
+
+func (bp *BlockProcessor) Loop() {
+	client := bp.rpcClient
 	lastHash := chainhash.Hash{}
-	connCfg := &rpcclient.ConnConfig{
-		Host:         "localhost:18443",
-		User:         "vtc",
-		Pass:         "vtc",
-		HTTPPostMode: true, // Bitcoin core only supports HTTP POST mode
-		DisableTLS:   true, // Bitcoin core does not provide TLS by default
-	}
-	client, err := rpcclient.New(connCfg, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer client.Shutdown()
 
 	for {
 		time.Sleep(time.Second)
@@ -65,7 +65,7 @@ func Loop() {
 				continue
 			}
 
-			err = processBlock(block)
+			err = bp.processBlock(block)
 			if err != nil {
 				fmt.Printf("Error processing block: %s\n", err.Error())
 				continue
@@ -73,16 +73,16 @@ func Loop() {
 		}
 
 		lastHash.SetBytes(bestHash.CloneBytes())
+
+		fmt.Printf("Processed %d blocks, best hash %s\n", len(pendingBlockHashes), lastHash)
+
 	}
 }
 
-func processBlock(block *wire.MsgBlock) error {
+func (bp *BlockProcessor) processBlock(block *wire.MsgBlock) error {
 	for _, tx := range block.Transactions {
-		if openassets.IsOpenAssetTransaction(tx) {
-			fmt.Printf("Found open asset transaction\n")
-		}
+		bp.wallet.ProcessTransaction(tx)
 	}
 
-	fmt.Printf("Processed block %s", block.BlockHash())
 	return nil
 }
