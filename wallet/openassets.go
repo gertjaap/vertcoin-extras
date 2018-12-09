@@ -24,8 +24,6 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 	// first find the marker output and extract the amounts
 	openAssetData, txoIndex := extractOpenAssetMarkerData(tx)
 
-	fmt.Printf("Found openasset data: %x\n", openAssetData)
-
 	buf := bytes.NewBuffer(openAssetData[4:]) // Skip marker and version
 	reader := bufio.NewReader(buf)
 	numAmounts, _ := wire.ReadVarInt(reader, 0)
@@ -61,7 +59,7 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 
 	if totalTransferOutputs > totalInputAmount {
 		// Don't process - invalid TX
-		fmt.Printf("Transaction totals %d in outputs, but only %d as input - ignoring\n", totalTransferOutputs, totalInputAmount)
+		fmt.Printf("Invalid Transaction : Insufficient inputs [%d/%d] - ignoring\n", totalTransferOutputs, totalInputAmount)
 		return
 	}
 
@@ -216,7 +214,6 @@ func (w *Wallet) GenerateOpenAssetTx(tx OpenAssetTransaction) (*wire.MsgTx, erro
 	}
 
 	metadataBytes := metadataBuf.Bytes()
-	fmt.Printf("Built %d metadata bytes: %x\n", len(metadataBytes), metadataBytes)
 	wire.WriteVarBytes(writer, 0, metadataBuf.Bytes())
 
 	writer.Flush()
@@ -253,8 +250,6 @@ func (w *Wallet) addOpenAssetInputsAndChange(tx *OpenAssetTransaction, assetID [
 		if autxo.Ours && bytes.Equal(autxo.AssetID, assetID) {
 			totalAdded += autxo.AssetValue
 			assetUtxosToAdd = append(assetUtxosToAdd, autxo)
-		} else {
-			fmt.Printf("Skipping autxo with asset ID [%x], value [%d], ours [%t]\n", autxo.AssetID, autxo.AssetValue, autxo.Ours)
 		}
 	}
 

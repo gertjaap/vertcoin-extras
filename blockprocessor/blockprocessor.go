@@ -77,8 +77,7 @@ func (bp *BlockProcessor) Loop() {
 
 		lastHash.SetBytes(bestHash.CloneBytes())
 
-		fmt.Printf("Processed %d blocks, best hash %s\n", len(pendingBlockHashes), lastHash)
-
+	
 	}
 }
 
