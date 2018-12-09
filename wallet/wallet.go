@@ -90,6 +90,22 @@ func (w *Wallet) Assets() []OpenAsset {
 	return w.assets
 }
 
+func (w *Wallet) FollowAsset(assetID []byte) {
+	for _, a := range w.assets {
+		if bytes.Equal(a.AssetID, assetID) {
+			a.Follow = true
+		}
+	}
+}
+
+func (w *Wallet) UnfollowAsset(assetID []byte) {
+	for _, a := range w.assets {
+		if bytes.Equal(a.AssetID, assetID) {
+			a.Follow = true
+		}
+	}
+}
+
 func (w *Wallet) ProcessTransaction(tx *wire.MsgTx) {
 	if IsOpenAssetTransaction(tx) {
 		w.processOpenAssetTransaction(tx)
