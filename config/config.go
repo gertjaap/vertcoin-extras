@@ -13,6 +13,7 @@ type Config struct {
 	RpcUser     string
 	RpcPassword string
 	Port        uint16
+	Cors		bool
 }
 
 func InitConfig() (*Config, error) {
@@ -31,6 +32,7 @@ func (c *Config) DefaultConfig() string {
 	defaultConfig += "rpcuser=vtc\n"
 	defaultConfig += "rpcpassword=vtc\n"
 	defaultConfig += "port=27888\n"
+	defaultConfig += "cors=false\n"
 
 	return defaultConfig
 }
@@ -61,6 +63,7 @@ func (c *Config) Read() error {
 	c.RpcUser = cfg.Section("").Key("rpcuser").String()
 	c.RpcPassword = cfg.Section("").Key("rpcpassword").String()
 	c.Port = uint16(cfg.Section("").Key("port").MustInt(27888))
+	c.Cors = cfg.Section("").Key("cors").MustBool(false)
 
 	return nil
 }

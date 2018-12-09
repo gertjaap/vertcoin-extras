@@ -46,4 +46,5 @@ type OpenAssetMetadata struct {
 type OpenAsset struct {
 	AssetID  []byte
 	Metadata OpenAssetMetadata
+	Follow   bool
 }

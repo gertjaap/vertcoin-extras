@@ -97,6 +97,7 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 
 				w.registerAsset(OpenAsset{
 					AssetID: oatxo.AssetID,
+					Follow:  oatxo.Ours,
 					Metadata: OpenAssetMetadata{
 						Decimals: uint8(assetDecimals),
 						Ticker:   assetTicker,
