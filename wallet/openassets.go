@@ -93,7 +93,6 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 				// Register the new asset
 				txHash := tx.TxHash()
 				oatxo.AssetID = btcutil.Hash160(txHash[:])
-
 				w.registerAsset(OpenAsset{
 					AssetID: oatxo.AssetID,
 					Follow:  oatxo.Ours,
