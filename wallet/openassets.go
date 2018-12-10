@@ -104,6 +104,9 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 				})
 			} else {
 				oatxo.AssetID = inputAssetId
+				if oatxo.Ours {
+					w.FollowAsset(oatxo.AssetID)
+				}
 			}
 			w.registerAssetUtxo(oatxo)
 		} else {

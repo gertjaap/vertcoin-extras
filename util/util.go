@@ -1,8 +1,8 @@
 package util
 
 import (
-	"github.com/adiabat/bech32"
 	"github.com/btcsuite/btcd/txscript"
+	"github.com/mit-dci/lit/bech32"
 )
 
 func KeyHashFromPkScript(pkscript []byte) []byte {
