@@ -213,7 +213,6 @@ func (w *Wallet) GenerateOpenAssetTx(tx OpenAssetTransaction) (*wire.MsgTx, erro
 		mdw.Flush()
 	}
 
-	metadataBytes := metadataBuf.Bytes()
 	wire.WriteVarBytes(writer, 0, metadataBuf.Bytes())
 
 	writer.Flush()
