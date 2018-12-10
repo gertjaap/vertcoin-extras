@@ -34,7 +34,9 @@ func (h *HttpServer) Run() error {
 	r.HandleFunc("/api/assets/all", h.AllAssets)
 	r.HandleFunc("/api/assets/follow/{assetID}", h.FollowAsset)
 	r.HandleFunc("/api/assets/unfollow/{assetID}", h.UnfollowAsset)
-
+	r.HandleFunc("/api/donations/enable", h.EnableDonations)
+	r.HandleFunc("/api/donations/disable", h.DisableDonations)
+	r.HandleFunc("/api/donations/status", h.DonationStatus)
 	r.HandleFunc("/api/assets/mine", h.MyAssets)
 	r.HandleFunc("/api/assetBalance/{assetID}", h.AssetBalance)
 	r.HandleFunc("/api/balance", h.Balance)
