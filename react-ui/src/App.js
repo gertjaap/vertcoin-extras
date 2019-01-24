@@ -21,6 +21,7 @@ import {
     InputGroup,
     InputGroupAddon
 } from 'reactstrap';
+import {MdRefresh, MdCheckCircle} from 'react-icons/md';
 import {BigNumber} from 'bignumber.js';
 import QRCode from 'qrcode.react';
 
@@ -28,7 +29,7 @@ class App extends Component {
     constructor(props) {
         super(props);
         this.baseUrl = "/api/"
-        if(window.location.host == "localhost:3000") { // When running in REACT Dev
+        if(window.location.host === "localhost:3000") { // When running in REACT Dev
             this.baseUrl = "http://localhost:27888/api/"
         }
         this.toggle = this.toggle.bind(this);
@@ -47,6 +48,10 @@ class App extends Component {
             issueDecimals: 8,
             issueSupply: 0,
             donating: true,
+            connected: false,
+            synced: false,
+            blockHeight: 0,
+            headerQueue: 0,
         };
         this.refreshAssets = this.refreshAssets.bind(this);
         this.refreshBalance = this.refreshBalance.bind(this);
@@ -54,6 +59,7 @@ class App extends Component {
         this.issueAsset = this.issueAsset.bind(this);
         this.refreshNetwork = this.refreshNetwork.bind(this);
         this.refreshAddresses = this.refreshAddresses.bind(this);
+        this.refreshSyncStatus = this.refreshSyncStatus.bind(this);
         this.refresh = this.refresh.bind(this);
         this.toggleDonations = this.toggleDonations.bind(this);
         this.refreshDonations = this.refreshDonations.bind(this);
@@ -132,6 +138,27 @@ class App extends Component {
             });
         });
     }
+
+    refreshSyncStatus() {
+        fetch(this.baseUrl + "syncStatus").then((resp) => resp.json()).then((resp) => {
+            this.setState({
+                connected: resp.Connected,
+                blockHeight: resp.SyncHeight,
+                synced: resp.Synced,
+                headerQueue: resp.HeaderQueue,
+            }, ()=> {
+                if(!(this.state.connected === true) && this.state.newRpcServer === undefined) {
+                    fetch(this.baseUrl + "rpcSettings").then((resp) => resp.json()).then((resp) => {
+                        this.setState({
+                            newRpcServer: resp.RpcHost,
+                            newRpcUser: resp.RpcUser,
+                            newRpcPassword: resp.RpcPassword
+                        });
+                    });
+                }
+            });
+        });
+    }
     refreshAssets() {
         fetch(this.baseUrl + "assets/mine").then((resp) => resp.json()).then((resp) => {
             if(resp.Assets === null) { resp.Assets = []; }
@@ -172,7 +199,28 @@ class App extends Component {
         this.refreshBalance();
         this.refreshAddresses();
         this.refreshAssets();
-        
+        this.refreshSyncStatus()
+    }
+
+    updateRpcSettings() {
+        fetch(this.baseUrl + "updateRpcSettings", {
+            method: "POST",
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                
+                    "RpcHost": this.state.newRpcServer,
+                    "RpcUser" : this.state.newRpcUser,
+                    "RpcPassword": this.state.newRpcPassword
+                
+            })
+        })
+        .then((res) => { return res.json(); })
+        .then((data) => {
+            this.setState({connected:true, page:'home'}, () => {this.refresh();});
+        })
     }
 
     toggle() {
@@ -181,12 +229,62 @@ class App extends Component {
         });
     }
     render() {
-
+        var page = this.state.page;
+        if(!(this.state.connected === true)) {
+            page = 'disconnected';
+        }
         var fractions = this.state.balance.mod(new BigNumber("1e8"))
         var coins = this.state.balance.plus(fractions.negated()).div(new BigNumber("1e8"))
         
         var mainPage = "";
-        switch(this.state.page) {
+        switch(page) {
+            case 'disconnected':
+                mainPage = (<Container>
+                <Row>
+                    <Col>
+                        <h2>Disconnected :-(</h2>
+                        <p>Vertcoin OpenAssets is unable to connect to Vertcoin Core. Please check the settings below and correct them if needed:</p>
+                        <Form>
+                            <FormGroup row>
+                                <Label for="amount" sm={2}>RPC URL:</Label>
+                                
+                                <Col sm={10}>
+                                    <InputGroup>
+                                        <Input type="text" name="rpcServer" id="rpcServer" placeholder="Enter server URL" value={this.state.newRpcServer} onChange={e => this.setState({ newRpcServer: e.target.value })} />
+                                    </InputGroup>
+                                </Col>
+                            </FormGroup>
+                            <FormGroup row>
+                                <Label for="amount" sm={2}>RPC User:</Label>
+                                
+                                <Col sm={10}>
+                                    <InputGroup>
+                                        <Input type="text" name="rpcUser" id="rpcUser" placeholder="Enter RPC User" value={this.state.newRpcUser} onChange={e => this.setState({ newRpcUser: e.target.value })} />
+                                    </InputGroup>
+                                </Col>
+                            </FormGroup>
+                            <FormGroup row>
+                                <Label for="amount" sm={2}>RPC Password:</Label>
+                                
+                                <Col sm={10}>
+                                    <InputGroup>
+                                        <Input type="text" name="rpcPassword" id="rpcPassword" placeholder="Enter RPC Password" value={this.state.newRpcPassword} onChange={e => this.setState({ newRpcPassword: e.target.value })} />
+                                    </InputGroup>
+                                </Col>
+                            </FormGroup>
+                            <FormGroup row>
+                                <Col>
+                                    <Button onClick={(e) => {
+                                        this.updateRpcSettings()
+                                    }}>Update</Button>
+                                </Col>
+                            </FormGroup>
+                        </Form>
+                    </Col>
+                </Row>
+                </Container>)
+                break;
+            default:
             case 'home':
                 var assets = this.state.assets.map((asset) => {
                     var assetBalance = new BigNumber(asset.Balance);
@@ -208,7 +306,18 @@ class App extends Component {
                     </tr>);
                 });
 
+                var syncStatus = null;
+                if(!this.state.synced) {
+                    syncStatus = (<Row>
+                        <Col>
+                            <h2>Catching up...</h2>
+                            <p>Vertcoin OpenAssets is catching up with the blockchain. There's <b>{this.state.headerQueue}</b> blocks left to process</p>
+                        </Col>
+                    </Row>);
+                }
+
                 mainPage = (<Container>
+                    {syncStatus}
                     <Row>
                         <Col>
                             <h2>Assets</h2>
@@ -354,10 +463,17 @@ class App extends Component {
             networkBadge = (<Badge color="danger">{this.state.network}</Badge>);
         }
         
+        var statusIcon = (<div class="nav-link"> | <MdRefresh /></div>)
+        if(this.state.synced) {
+            statusIcon = (<div class="nav-link"> | <MdCheckCircle/></div>)
+        }
+
+        
+
         return (
             <div>
                 <Navbar color="inverse" light expand="md">
-                    <NavbarBrand href="#"  onClick={(e) => { this.setState({page:'home'}) }}><img src="logo.svg" /> OpenAssets {networkBadge}</NavbarBrand>
+                    <NavbarBrand href="#"  onClick={(e) => { this.setState({page:'home'}) }}><img alt="Logo" src="logo.svg" /> OpenAssets {networkBadge}</NavbarBrand>
                     <NavbarToggler onClick={this.toggle} />
                     <Collapse isOpen={this.state.isOpen} navbar>
                         <Nav className="ml-auto" navbar>
@@ -377,6 +493,9 @@ class App extends Component {
                                 <div class="nav-link">
                                     | Balance: <b>{ coins.toString() }</b>.<small>{ fractions.toString() }</small>&nbsp;<b>VTC</b>
                                 </div>
+                            </NavItem>
+                            <NavItem>
+                                {statusIcon}
                             </NavItem>
                         </Nav>
                     </Collapse>

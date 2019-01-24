@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/gertjaap/vertcoin-openassets/blockprocessor"
@@ -14,7 +13,8 @@ import (
 )
 
 func main() {
-	cfg, err := config.InitConfig()
+	configChanged := make(chan bool, 0)
+	cfg, err := config.InitConfig(configChanged)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,16 +31,27 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = client.GetBestBlockHash()
-	if err != nil {
-		log.Fatal(fmt.Errorf("Error connecting to Vertcoin Core RPC: %s\n", err.Error()))
-	}
-
-	defer client.Shutdown()
-
 	w := wallet.NewWallet(client, cfg)
 	bp := blockprocessor.NewBlockProcessor(w, client, cfg)
-	srv := server.NewHttpServer(w, cfg)
+	srv := server.NewHttpServer(w, cfg, bp)
+
+	go func(wal *wallet.Wallet, blp *blockprocessor.BlockProcessor, cli *rpcclient.Client, config *rpcclient.ConnConfig) {
+		for {
+			<-configChanged
+			fmt.Printf("Creating new RPC Client...\n")
+
+			config.Host = cfg.RpcHost
+			config.User = cfg.RpcUser
+			config.Pass = cfg.RpcPassword
+
+			cli, err := rpcclient.New(config, nil)
+			if err != nil {
+				log.Fatal(err)
+			}
+			wal.UpdateClient(cli)
+			blp.UpdateClient(cli)
+		}
+	}(w, bp, client, connCfg)
 
 	err = w.InitKey()
 	if err != nil {
@@ -49,10 +60,7 @@ func main() {
 
 	go bp.Loop()
 
-	go func() {
-		time.Sleep(time.Second)
-		open.Run(fmt.Sprintf("http://localhost:%d/", cfg.Port))
-	}()
+	open.Run(fmt.Sprintf("http://localhost:%d/", cfg.Port))
 
 	log.Fatal(srv.Run())
 }

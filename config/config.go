@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	rpcChanged  chan bool
 	Network     *Network
 	RpcHost     string
 	RpcUser     string
@@ -17,8 +18,9 @@ type Config struct {
 	Donate      bool
 }
 
-func InitConfig() (*Config, error) {
+func InitConfig(rpcChanged chan bool) (*Config, error) {
 	c := new(Config)
+	c.rpcChanged = rpcChanged
 	err := c.Initialize()
 	if err != nil {
 		return nil, err
@@ -87,30 +89,38 @@ func (c *Config) Initialize() error {
 
 func (c *Config) EnableDonations() error {
 	c.Donate = true
-	cfg, err := ini.Load("vertcoin-openassets.conf")
-	if err != nil {
-		return err
-	}
-	cfg.Section("").Key("donate").SetValue("true")
-	err = cfg.SaveTo("vertcoin-openassets.conf")
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.Save()
 }
 
 func (c *Config) DisableDonations() error {
 	c.Donate = false
+	return c.Save()
+}
+
+func (c *Config) SetRpcCredentials(host, user, password string) error {
+	c.RpcHost = host
+	c.RpcUser = user
+	c.RpcPassword = password
+	c.rpcChanged <- true
+	return c.Save()
+}
+func (c *Config) Save() error {
 	cfg, err := ini.Load("vertcoin-openassets.conf")
 	if err != nil {
 		return err
 	}
-	cfg.Section("").Key("donate").SetValue("false")
-	err = cfg.SaveTo("vertcoin-openassets.conf")
-	if err != nil {
-		return err
+
+	if c.Donate {
+		cfg.Section("").Key("donate").SetValue("true")
+	} else {
+		cfg.Section("").Key("donate").SetValue("false")
 	}
-	return nil
+
+	cfg.Section("").Key("rpchost").SetValue(c.RpcHost)
+	cfg.Section("").Key("rpcuser").SetValue(c.RpcUser)
+	cfg.Section("").Key("rpcpassword").SetValue(c.RpcPassword)
+
+	return cfg.SaveTo("vertcoin-openassets.conf")
 }
 
 func (c *Config) CheckValid() error {

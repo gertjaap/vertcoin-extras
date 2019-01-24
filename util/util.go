@@ -1,6 +1,8 @@
 package util
 
 import (
+	"strings"
+
 	"github.com/adiabat/bech32"
 	"github.com/btcsuite/btcd/txscript"
 )
@@ -51,4 +53,15 @@ func DirectWPKHScriptFromAddress(adr string) ([]byte, error) {
 	}
 	copy(pubkeyHash[:], decoded[2:]) // skip version and pushdata byte returned by SegWitAddressDecode
 	return DirectWPKHScriptFromPKH(pubkeyHash), nil
+}
+
+func IsConnectionError(err error) bool {
+	if strings.Contains(err.Error(), "connection refused") {
+		return true
+	}
+
+	if strings.Contains(err.Error(), "401") {
+		return true
+	}
+	return false
 }

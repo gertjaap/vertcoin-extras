@@ -34,6 +34,10 @@ func NewWallet(c *rpcclient.Client, conf *config.Config) *Wallet {
 	return w
 }
 
+func (w *Wallet) UpdateClient(c *rpcclient.Client) {
+	w.rpcClient = &(*c)
+}
+
 func (w *Wallet) InitKey() error {
 	var err error
 	var privKey [32]byte
