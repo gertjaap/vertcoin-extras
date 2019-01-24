@@ -21,7 +21,7 @@ type Wallet struct {
 	config     *config.Config
 	utxos      []Utxo
 	assetUtxos []OpenAssetUtxo
-	assets     []OpenAsset
+	assets     []*OpenAsset
 	privateKey *btcec.PrivateKey
 	pubKey     *btcec.PublicKey
 	pubKeyHash [20]byte
@@ -90,7 +90,7 @@ func (w *Wallet) AssetBalance(assetID []byte) uint64 {
 	return value
 }
 
-func (w *Wallet) Assets() []OpenAsset {
+func (w *Wallet) Assets() []*OpenAsset {
 	return w.assets
 }
 
@@ -159,7 +159,7 @@ func (w *Wallet) registerAssetUtxo(utxo OpenAssetUtxo) {
 }
 
 func (w *Wallet) registerAsset(asset OpenAsset) {
-	w.assets = append(w.assets, asset)
+	w.assets = append(w.assets, &asset)
 }
 
 func (w *Wallet) FindUtxoFromTxIn(txi *wire.TxIn) (Utxo, error) {
