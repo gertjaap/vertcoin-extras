@@ -35,23 +35,14 @@ func main() {
 	bp := blockprocessor.NewBlockProcessor(w, client, cfg)
 	srv := server.NewHttpServer(w, cfg, bp)
 
-	go func(wal *wallet.Wallet, blp *blockprocessor.BlockProcessor, cli *rpcclient.Client, config *rpcclient.ConnConfig) {
+	go func(wal *wallet.Wallet, blp *blockprocessor.BlockProcessor, config *rpcclient.ConnConfig) {
 		for {
 			<-configChanged
-			fmt.Printf("Creating new RPC Client...\n")
-
 			config.Host = cfg.RpcHost
 			config.User = cfg.RpcUser
 			config.Pass = cfg.RpcPassword
-
-			cli, err := rpcclient.New(config, nil)
-			if err != nil {
-				log.Fatal(err)
-			}
-			wal.UpdateClient(cli)
-			blp.UpdateClient(cli)
 		}
-	}(w, bp, client, connCfg)
+	}(w, bp, connCfg)
 
 	err = w.InitKey()
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/btcsuite/btcutil"
 	"github.com/gertjaap/vertcoin-openassets/leb128"
 	"github.com/gertjaap/vertcoin-openassets/util"
+	"github.com/tidwall/buntdb"
 )
 
 const MINOUTPUT uint64 = 1000
@@ -300,6 +301,11 @@ func (w *Wallet) markOpenAssetTxInputsAsSpent(tx *wire.MsgTx) {
 			}
 		}
 		if removeIndex >= 0 {
+			w.db.Update(func(dtx *buntdb.Tx) error {
+				key := fmt.Sprintf("autxo-%s-%d", w.assetUtxos[removeIndex].Utxo.TxHash.String(), w.assetUtxos[removeIndex].Utxo.Outpoint)
+				_, err := dtx.Delete(key)
+				return err
+			})
 			w.assetUtxos = append(w.assetUtxos[:removeIndex], w.assetUtxos[removeIndex+1:]...)
 		}
 	}

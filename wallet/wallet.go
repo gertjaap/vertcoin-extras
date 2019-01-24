@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -14,6 +15,7 @@ import (
 	"github.com/gertjaap/vertcoin-openassets/config"
 	"github.com/gertjaap/vertcoin-openassets/util"
 	"github.com/mit-dci/lit/bech32"
+	"github.com/tidwall/buntdb"
 )
 
 type Wallet struct {
@@ -25,13 +27,45 @@ type Wallet struct {
 	privateKey *btcec.PrivateKey
 	pubKey     *btcec.PublicKey
 	pubKeyHash [20]byte
+	db         *buntdb.DB
 }
 
 func NewWallet(c *rpcclient.Client, conf *config.Config) *Wallet {
 	w := new(Wallet)
 	w.rpcClient = c
 	w.config = conf
+	w.db, _ = buntdb.Open("wallet.db")
+	w.loadStuff()
 	return w
+}
+
+func (w *Wallet) loadStuff() {
+	w.db.View(func(tx *buntdb.Tx) error {
+		tx.AscendRange("", "utxo-", "utxp-", func(key, value string) bool {
+			log.Printf("Loading key %s\n", key)
+			w.utxos = append(w.utxos, UtxoFromBytes([]byte(value)))
+			return true
+		})
+		return nil
+	})
+
+	w.db.View(func(tx *buntdb.Tx) error {
+		tx.AscendRange("", "autxo-", "autxp-", func(key, value string) bool {
+			log.Printf("Loading key %s\n", key)
+			w.assetUtxos = append(w.assetUtxos, OpenAssetUtxoFromBytes([]byte(value)))
+			return true
+		})
+		return nil
+	})
+
+	w.db.View(func(tx *buntdb.Tx) error {
+		tx.AscendRange("", "asset-", "asseu-", func(key, value string) bool {
+			log.Printf("Loading key %s\n", key)
+			w.assets = append(w.assets, OpenAssetFromBytes([]byte(value)))
+			return true
+		})
+		return nil
+	})
 }
 
 func (w *Wallet) UpdateClient(c *rpcclient.Client) {
@@ -98,6 +132,7 @@ func (w *Wallet) FollowAsset(assetID []byte) {
 	for _, a := range w.assets {
 		if bytes.Equal(a.AssetID, assetID) {
 			a.Follow = true
+			w.updateAsset(a)
 		}
 	}
 }
@@ -106,6 +141,7 @@ func (w *Wallet) UnfollowAsset(assetID []byte) {
 	for _, a := range w.assets {
 		if bytes.Equal(a.AssetID, assetID) {
 			a.Follow = true
+			w.updateAsset(a)
 		}
 	}
 }
@@ -145,21 +181,63 @@ func (w *Wallet) markTxInputsAsSpent(tx *wire.MsgTx) {
 			}
 		}
 		if removeIndex >= 0 {
+			w.db.Update(func(dtx *buntdb.Tx) error {
+				key := fmt.Sprintf("utxo-%s-%d", w.utxos[removeIndex].TxHash.String(), w.utxos[removeIndex].Outpoint)
+				_, err := dtx.Delete(key)
+				return err
+			})
 			w.utxos = append(w.utxos[:removeIndex], w.utxos[removeIndex+1:]...)
+
 		}
 	}
 }
 
 func (w *Wallet) registerUtxo(utxo Utxo) {
 	w.utxos = append(w.utxos, utxo)
+	err := w.db.Update(func(dtx *buntdb.Tx) error {
+		key := fmt.Sprintf("utxo-%s-%d", utxo.TxHash.String(), utxo.Outpoint)
+		log.Printf("Saving key %s\n", key)
+		_, _, err := dtx.Set(key, string(utxo.Bytes()), nil)
+		return err
+	})
+	if err != nil {
+		fmt.Printf("Error registering utxo: %s", err.Error())
+	}
 }
 
 func (w *Wallet) registerAssetUtxo(utxo OpenAssetUtxo) {
 	w.assetUtxos = append(w.assetUtxos, utxo)
+	err := w.db.Update(func(dtx *buntdb.Tx) error {
+		key := fmt.Sprintf("autxo-%s-%d", utxo.Utxo.TxHash.String(), utxo.Utxo.Outpoint)
+		log.Printf("Saving key %s\n", key)
+		_, _, err := dtx.Set(key, string(utxo.Bytes()), nil)
+		return err
+	})
+	if err != nil {
+		fmt.Printf("Error registering asset utxo: %s", err.Error())
+	}
 }
 
 func (w *Wallet) registerAsset(asset OpenAsset) {
 	w.assets = append(w.assets, &asset)
+	err := w.db.Update(func(dtx *buntdb.Tx) error {
+		key := fmt.Sprintf("asset-%x", asset.AssetID)
+		log.Printf("Saving key %s\n", key)
+		_, _, err := dtx.Set(key, string((&asset).Bytes()), nil)
+		return err
+	})
+	if err != nil {
+		fmt.Printf("Error registering asset: %s", err.Error())
+	}
+}
+
+func (w *Wallet) updateAsset(asset *OpenAsset) {
+	w.db.Update(func(dtx *buntdb.Tx) error {
+		key := fmt.Sprintf("asset-%x", asset.AssetID)
+		log.Printf("Saving key %s\n", key)
+		_, _, err := dtx.Set(key, string(asset.Bytes()), nil)
+		return err
+	})
 }
 
 func (w *Wallet) FindUtxoFromTxIn(txi *wire.TxIn) (Utxo, error) {
