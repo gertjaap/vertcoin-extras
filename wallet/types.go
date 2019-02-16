@@ -35,6 +35,29 @@ func UtxoFromBytes(b []byte) Utxo {
 	return u
 }
 
+type StealthUtxo struct {
+	Utxo   Utxo
+	EncOTK []byte
+}
+
+func (su StealthUtxo) Bytes() []byte {
+	var buf bytes.Buffer
+	wire.WriteVarBytes(&buf, 0, su.EncOTK)
+	buf.Write(su.Utxo.Bytes())
+	return buf.Bytes()
+}
+
+func StealthUtxoFromBytes(b []byte) StealthUtxo {
+	buf := bytes.NewBuffer(b)
+	su := StealthUtxo{}
+
+	encOtk, _ := wire.ReadVarBytes(buf, 0, 150, "encotk")
+	su.EncOTK = encOtk
+	su.Utxo = UtxoFromBytes(buf.Bytes())
+
+	return su
+}
+
 type OpenAssetUtxo struct {
 	AssetID    []byte
 	Utxo       Utxo
@@ -117,4 +140,14 @@ func OpenAssetFromBytes(b []byte) *OpenAsset {
 	binary.Read(buf, binary.BigEndian, &oa.Follow)
 
 	return oa
+}
+
+type StealthTransaction struct {
+	RecipientPubKey [33]byte
+	Amount          uint64
+}
+
+type SendTransaction struct {
+	RecipientPkh [20]byte
+	Amount       uint64
 }

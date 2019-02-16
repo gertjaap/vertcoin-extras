@@ -36,12 +36,13 @@ class App extends Component {
         this.state = {
             isOpen: false,
             balance: new BigNumber(0),
+            stealthBalance: new BigNumber(0),
             page: 'home',
             vertcoinAddress: "",
             assetAddress: "",
             assets: [],
             network: "",
-            sendAsset: null,
+            sendAsset: {AssetID:"VTC", Ticker:"VTC", Decimals: 8},
             sendAmount: "0",
             sendTo:"",
             issueTicker: "",
@@ -52,10 +53,12 @@ class App extends Component {
             synced: false,
             blockHeight: 0,
             headerQueue: 0,
+            sendStealth: false,
         };
         this.refreshAssets = this.refreshAssets.bind(this);
         this.refreshBalance = this.refreshBalance.bind(this);
         this.sendAsset = this.sendAsset.bind(this);
+        this.getAssetByID = this.getAssetByID.bind(this);
         this.issueAsset = this.issueAsset.bind(this);
         this.refreshNetwork = this.refreshNetwork.bind(this);
         this.refreshAddresses = this.refreshAddresses.bind(this);
@@ -89,7 +92,7 @@ class App extends Component {
         })
     }
 
-    sendAsset(asset, amount, to) {
+    sendAsset(asset, amount, to, stealth) {
         var realAmount = new BigNumber(amount).times(new BigNumber("1e" + asset.Decimals.toString())).toNumber();
         fetch(this.baseUrl + "transferAsset", {
             method: "POST",
@@ -101,7 +104,8 @@ class App extends Component {
                 
                     "AssetID": asset.AssetID,
                     "Amount" : realAmount,
-                    "RecipientAddress": to
+                    "RecipientAddress": to,
+                    "UseStealth" : stealth
                 
             })
         })
@@ -109,6 +113,17 @@ class App extends Component {
         .then((data) => {
             this.setState({page:'home'});
         })
+    }
+
+    getAssetByID(assetID) {
+        var sendAsset = this.state.assets.find((a) => a.AssetID === assetID);
+        if (assetID === "VTC") {
+            sendAsset = {AssetID: "VTC", Ticker: "VTC", Decimals: 8}
+        } else if (assetID === "SVTC") {
+            sendAsset = {AssetID: "SVTC", Ticker: "VTC", Decimals: 8}
+        }
+
+        return sendAsset;
     }
 
     issueAsset(ticker, decimals, supply) {
@@ -134,7 +149,8 @@ class App extends Component {
     refreshBalance() {
         fetch(this.baseUrl + "balance").then((resp) => resp.json()).then((resp) => {
             this.setState({
-                balance: new BigNumber(resp.TotalBalance)
+                balance: new BigNumber(resp.TotalBalance),
+                stealthBalance: new BigNumber(resp.StealthBalance)
             });
         });
     }
@@ -179,7 +195,8 @@ class App extends Component {
         fetch(this.baseUrl + "addresses").then((resp) => resp.json()).then((resp) => {
             this.setState({
                 vertcoinAddress: resp.VertcoinAddress,
-                assetAddress: resp.AssetAddress
+                assetAddress: resp.AssetAddress,
+                stealthAddress: resp.StealthAddress
             })
         });
     }
@@ -236,6 +253,10 @@ class App extends Component {
         var fractions = this.state.balance.mod(new BigNumber("1e8"))
         var coins = this.state.balance.plus(fractions.negated()).div(new BigNumber("1e8"))
         
+        var stealthFractions = this.state.stealthBalance.mod(new BigNumber("1e8"))
+        var stealthCoins = this.state.stealthBalance.plus(stealthFractions.negated()).div(new BigNumber("1e8"))
+        
+
         var mainPage = "";
         switch(page) {
             case 'disconnected':
@@ -298,7 +319,8 @@ class App extends Component {
                         <td><b>{assetAmount.toString()}</b>.<small>{assetFractions.toString()}</small></td>
                         <td>
                             <Button color="primary" size="sm" onClick={(e) => {
-                                this.setState({sendAsset:asset, page:'send'});
+                                
+                                this.setState({sendAsset:this.getAssetByID(asset.AssetID), page:'send'});
                             }}>
                                 Send
                             </Button>
@@ -336,6 +358,12 @@ class App extends Component {
                             </Table>
                         </Col>
                     </Row>
+                    <Row>
+                        <Col>
+                            <h2>Stealth Balance</h2><br/>
+                            You have <b>{ stealthCoins.toString() }</b>.<small>{ stealthFractions.toString() }</small>&nbsp;<b>VTC</b> received in Stealth Transactions
+                        </Col>
+                    </Row>
                 </Container>)
 
 
@@ -343,24 +371,42 @@ class App extends Component {
             case 'receive':
                 mainPage = (<Container>
                     <Row>
-                        <Col xs={6} style={{textAlign: "center"}}>
+                        <Col xs={6} lg={4} style={{textAlign: "center"}}>
                             <h3>Receive VTC:</h3>
                             <QRCode renderAs="svg" bgColor="rgba(0,0,0,0)" value={this.state.vertcoinAddress} /><br/>
                             <small>{this.state.vertcoinAddress}</small>                        
                         </Col>
-                        <Col xs={6} style={{textAlign: "center"}}>
+                        <Col xs={6} lg={4} style={{textAlign: "center"}}>
                             <h3>Receive Assets:</h3>
                             <QRCode renderAs="svg" bgColor="rgba(0,0,0,0)" value={this.state.assetAddress} /><br/>
                             <small>{this.state.assetAddress}</small>                        
+                        </Col>
+                        <Col xs={6} lg={4} style={{textAlign: "center"}}>
+                            <h3>Stealth Receive VTC:</h3>
+                            <QRCode renderAs="svg" bgColor="rgba(0,0,0,0)" value={this.state.stealthAddress} /><br/>
+                            <small>{this.state.stealthAddress}</small>                        
                         </Col>
                     </Row>
                 </Container>);
                 break;
             case 'send':
+                var assetOptions = this.state.assets.map((a) => {
+                    return (<option value={a.AssetID}>{a.Ticker}</option>)
+                });
                 mainPage = (<Container>
                     <Row>
                         <Col>
                             <Form>
+                                <FormGroup row>
+                                    <Label for="asset" sm={2}>Asset:</Label>
+                                    <Col sm={10}>
+                                    <Input type="select" name="asset" id="asset" value={this.state.sendAsset.AssetID} onChange={e => { console.log(e.target.value); this.setState({ sendAsset: this.getAssetByID(e.target.value) }); }}>
+                                            <option value="VTC">VTC</option>
+                                            <option value="SVTC">VTC (Stealth)</option>
+                                            {assetOptions}
+                                    </Input>
+                                    </Col>
+                                </FormGroup>
                                 <FormGroup row>
                                     <Label for="amount" sm={2}>Amount:</Label>
                                     
@@ -377,10 +423,16 @@ class App extends Component {
                                         <Input type="text" name="recipient" id="recipient" placeholder="Enter recipient address" value={this.state.sendTo} onChange={e => this.setState({ sendTo: e.target.value })} />
                                     </Col>
                                 </FormGroup>
+                                <FormGroup row style={{display:((this.state.sendAsset.AssetID==="VTC"||this.state.sendAsset.AssetID==="SVTC") ? '' : 'none')}}> 
+                                    <Label for="stealth" sm={2}>Use Stealth Inputs:</Label>
+                                    <Col sm={10}>
+                                        <Input type="checkbox" name="stealth" id="stealth" checked={this.state.sendStealth} onChange={e => this.setState({ sendStealth: e.target.checked })} />
+                                    </Col>
+                                </FormGroup>
                                 <FormGroup row>
                                     <Col>
                                         <Button onClick={(e) => {
-                                            this.sendAsset(this.state.sendAsset, this.state.sendAmount, this.state.sendTo)
+                                            this.sendAsset(this.state.sendAsset, this.state.sendAmount, this.state.sendTo, this.state.sendStealth)
                                         }}>Send</Button>
                                     </Col>
                                 </FormGroup>
@@ -484,6 +536,9 @@ class App extends Component {
                                 <NavLink href="#" onClick={(e) => { this.setState({page:'receive'}) }}>Receive</NavLink>
                             </NavItem>
                             <NavItem>
+                                <NavLink href="#" onClick={(e) => { this.setState({page:'send'}) }}>Send</NavLink>
+                            </NavItem>
+                            <NavItem>
                                 <NavLink href="#" onClick={(e) => { this.setState({page:'issue'}) }}>Issue</NavLink>
                             </NavItem>
                             <NavItem>
@@ -491,7 +546,7 @@ class App extends Component {
                             </NavItem>
                             <NavItem>
                                 <div class="nav-link">
-                                    | Balance: <b>{ coins.toString() }</b>.<small>{ fractions.toString() }</small>&nbsp;<b>VTC</b>
+                                    | Total Balance: <b>{ coins.toString() }</b>.<small>{ fractions.toString() }</small>&nbsp;<b>VTC</b>
                                 </div>
                             </NavItem>
                             <NavItem>

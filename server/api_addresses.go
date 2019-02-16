@@ -9,6 +9,7 @@ import (
 type AddressesResponse struct {
 	VertcoinAddress string
 	AssetAddress    string
+	StealthAddress  string
 }
 
 func (h *HttpServer) Addresses(w http.ResponseWriter, r *http.Request) {
@@ -24,9 +25,16 @@ func (h *HttpServer) Addresses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	stealthAdr, err := h.wallet.StealthAddress()
+	if err != nil {
+		h.writeError(w, fmt.Errorf("Error fetching Stealth Address: %s", err.Error()))
+		return
+	}
+
 	resp := AddressesResponse{
 		VertcoinAddress: vtcAdr,
 		AssetAddress:    assAdr,
+		StealthAddress:  stealthAdr,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
