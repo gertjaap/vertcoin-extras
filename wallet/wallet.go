@@ -11,8 +11,8 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
-	"github.com/gertjaap/vertcoin-openassets/config"
-	"github.com/gertjaap/vertcoin-openassets/util"
+	"github.com/gertjaap/vertcoin-extras/config"
+	"github.com/gertjaap/vertcoin-extras/util"
 	"github.com/mit-dci/lit/bech32"
 )
 

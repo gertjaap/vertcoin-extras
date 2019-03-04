@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/gertjaap/vertcoin-openassets/blockprocessor"
-	"github.com/gertjaap/vertcoin-openassets/config"
-	"github.com/gertjaap/vertcoin-openassets/server"
-	"github.com/gertjaap/vertcoin-openassets/wallet"
+	"github.com/gertjaap/vertcoin-extras/blockprocessor"
+	"github.com/gertjaap/vertcoin-extras/config"
+	"github.com/gertjaap/vertcoin-extras/server"
+	"github.com/gertjaap/vertcoin-extras/wallet"
 	"github.com/skratchdot/open-golang/open"
 )
 
@@ -31,16 +31,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = client.GetBestBlockHash()
-	if err != nil {
-		log.Fatal(fmt.Errorf("Error connecting to Vertcoin Core RPC: %s\n", err.Error()))
-	}
-
 	defer client.Shutdown()
 
 	w := wallet.NewWallet(client, cfg)
 	bp := blockprocessor.NewBlockProcessor(w, client, cfg)
-	srv := server.NewHttpServer(w, cfg)
+	srv := server.NewHttpServer(w, cfg, bp)
 
 	err = w.InitKey()
 	if err != nil {

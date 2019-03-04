@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gertjaap/vertcoin-openassets/wallet"
+	"github.com/gertjaap/vertcoin-extras/wallet"
 )
 
 type NewAssetParameters struct {

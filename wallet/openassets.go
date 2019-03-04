@@ -7,8 +7,8 @@ import (
 
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
-	"github.com/gertjaap/vertcoin-openassets/leb128"
-	"github.com/gertjaap/vertcoin-openassets/util"
+	"github.com/gertjaap/vertcoin-extras/leb128"
+	"github.com/gertjaap/vertcoin-extras/util"
 )
 
 const MINOUTPUT uint64 = 1000
@@ -170,13 +170,6 @@ func IsOpenAssetTransaction(tx *wire.MsgTx) bool {
 func (w *Wallet) GenerateOpenAssetTx(tx OpenAssetTransaction) (*wire.MsgTx, error) {
 	oatx := wire.NewMsgTx(1)
 	neededInputs := uint64(100000) // minfee
-	donation := uint64(0)
-
-	if w.config.Donate {
-		donation += uint64(len(tx.Transfers)) * uint64(10000)
-		donation += uint64(len(tx.Issuances)) * uint64(100000)
-		neededInputs += uint64(donation)
-	}
 
 	if len(tx.Transfers) > 0 {
 		err := w.addOpenAssetInputsAndChange(&tx, tx.Transfers[0].AssetID)
@@ -234,14 +227,6 @@ func (w *Wallet) GenerateOpenAssetTx(tx OpenAssetTransaction) (*wire.MsgTx, erro
 	for _, oat := range tx.Transfers {
 		oatx.AddTxOut(wire.NewTxOut(int64(MINOUTPUT), util.DirectWPKHScriptFromPKH(oat.RecipientPkh)))
 		neededInputs += MINOUTPUT
-	}
-
-	if w.config.Donate {
-		script, err := util.DirectWPKHScriptFromAddress(w.config.Network.DonationAddress)
-		if err != nil {
-			return nil, fmt.Errorf("Error adding donation output: %s", err.Error())
-		}
-		oatx.AddTxOut(wire.NewTxOut(int64(donation), script))
 	}
 
 	err := w.AddInputsAndChange(oatx, uint64(neededInputs))

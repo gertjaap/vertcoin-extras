@@ -34,14 +34,13 @@ func (c *Config) DefaultConfig() string {
 	defaultConfig += "rpcpassword=vtc\n"
 	defaultConfig += "port=27888\n"
 	defaultConfig += "cors=false\n"
-	defaultConfig += "donate=true\n"
 
 	return defaultConfig
 }
 
 func (c *Config) WriteDefaultsIfNotExist() error {
-	if _, err := os.Stat("vertcoin-openassets.conf"); os.IsNotExist(err) {
-		f, err := os.Create("vertcoin-openassets.conf")
+	if _, err := os.Stat("vertcoin-extras.conf"); os.IsNotExist(err) {
+		f, err := os.Create("vertcoin-extras.conf")
 		if err != nil {
 			return err
 		}
@@ -55,7 +54,7 @@ func (c *Config) WriteDefaultsIfNotExist() error {
 }
 
 func (c *Config) Read() error {
-	cfg, err := ini.Load("vertcoin-openassets.conf")
+	cfg, err := ini.Load("vertcoin-extras.conf")
 	if err != nil {
 		return err
 	}
@@ -66,7 +65,7 @@ func (c *Config) Read() error {
 	c.RpcPassword = cfg.Section("").Key("rpcpassword").String()
 	c.Port = uint16(cfg.Section("").Key("port").MustInt(27888))
 	c.Cors = cfg.Section("").Key("cors").MustBool(false)
-	c.Donate = cfg.Section("").Key("donate").MustBool(true)
+	c.Donate = false
 
 	return nil
 }
@@ -83,34 +82,6 @@ func (c *Config) Initialize() error {
 	}
 
 	return c.CheckValid()
-}
-
-func (c *Config) EnableDonations() error {
-	c.Donate = true
-	cfg, err := ini.Load("vertcoin-openassets.conf")
-	if err != nil {
-		return err
-	}
-	cfg.Section("").Key("donate").SetValue("true")
-	err = cfg.SaveTo("vertcoin-openassets.conf")
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *Config) DisableDonations() error {
-	c.Donate = false
-	cfg, err := ini.Load("vertcoin-openassets.conf")
-	if err != nil {
-		return err
-	}
-	cfg.Section("").Key("donate").SetValue("false")
-	err = cfg.SaveTo("vertcoin-openassets.conf")
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (c *Config) CheckValid() error {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gertjaap/vertcoin-openassets/wallet"
+	"github.com/gertjaap/vertcoin-extras/wallet"
 	"github.com/mit-dci/lit/bech32"
 )
 

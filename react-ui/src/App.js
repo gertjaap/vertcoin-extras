@@ -46,7 +46,7 @@ class App extends Component {
             issueTicker: "",
             issueDecimals: 8,
             issueSupply: 0,
-            donating: true,
+            donating: false,
         };
         this.refreshAssets = this.refreshAssets.bind(this);
         this.refreshBalance = this.refreshBalance.bind(this);
@@ -55,32 +55,6 @@ class App extends Component {
         this.refreshNetwork = this.refreshNetwork.bind(this);
         this.refreshAddresses = this.refreshAddresses.bind(this);
         this.refresh = this.refresh.bind(this);
-        this.toggleDonations = this.toggleDonations.bind(this);
-        this.refreshDonations = this.refreshDonations.bind(this);
-    }
-    
-    toggleDonations() {
-        if(this.state.donating === true) {
-            fetch(this.baseUrl + "donations/disable")
-            .then((res) => { return res.json(); })
-            .then((data) => {
-                this.setState({donating: false});
-            })
-        } else {
-            fetch(this.baseUrl + "donations/enable")
-            .then((res) => { return res.json(); })
-            .then((data) => {
-                this.setState({donating: true});
-            })
-        }
-    }
-
-    refreshDonations() { 
-        fetch(this.baseUrl + "donations/status")
-        .then((res) => { return res.json(); })
-        .then((data) => {
-            this.setState({donating: data});
-        })
     }
 
     sendAsset(asset, amount, to) {
@@ -159,7 +133,6 @@ class App extends Component {
 
     componentDidMount() {
         this.refreshNetwork();
-        this.refreshDonations();
         this.refresh();
         this.refreshInterval = setInterval(this.refresh, 5000);
     }
@@ -319,34 +292,6 @@ class App extends Component {
                     </Row>
                 </Container>);
                 break;
-            case 'donation':
-                var donationButtonIntro = (
-                    <p>You are currently not donating. Please consider switching on these tiny donation to support the development of OpenAssets</p>
-                );
-                if(this.state.donating === true) {
-                    donationButtonIntro = (
-                        <p>You are currently donating. If want to stop supporting the maintenance of this software, you can switch the donations off.</p>
-                    );
-                }
-                mainPage = (
-                    <Container>
-                        <Row>
-                            <Col>
-                                <h2>Donations</h2>
-                                <p>The development of Vertcoin and Vertcoin OpenAssets relies entirely on volunteers. By enabling donations, the software includes tiny payments in each OpenAsset transaction:</p>
-                                <p>
-                                    <ul>
-                                        <li>When issuing a new assset, a donation of 0.001 VTC is included</li>
-                                        <li>When transferring an asset, a donation of 0.0001 VTC is included</li>
-                                    </ul>
-                                </p>
-                                {donationButtonIntro}
-                                <Button className={(this.state.donating === true) ? "btn-danger" : "btn-success"} onClick={(e) => { this.toggleDonations() }}>{(this.state.donating === true) ? "Disable" : "Enable"}</Button>
-                            </Col>
-                        </Row>
-                    </Container>
-                );
-                break;
         }
 
         var networkBadge = "";
@@ -357,7 +302,7 @@ class App extends Component {
         return (
             <div>
                 <Navbar color="inverse" light expand="md">
-                    <NavbarBrand href="#"  onClick={(e) => { this.setState({page:'home'}) }}><img src="logo.svg" /> OpenAssets {networkBadge}</NavbarBrand>
+                    <NavbarBrand href="#"  onClick={(e) => { this.setState({page:'home'}) }}><img src="logo.svg" /> Extras {networkBadge}</NavbarBrand>
                     <NavbarToggler onClick={this.toggle} />
                     <Collapse isOpen={this.state.isOpen} navbar>
                         <Nav className="ml-auto" navbar>
@@ -369,9 +314,6 @@ class App extends Component {
                             </NavItem>
                             <NavItem>
                                 <NavLink href="#" onClick={(e) => { this.setState({page:'issue'}) }}>Issue</NavLink>
-                            </NavItem>
-                            <NavItem>
-                                <NavLink href="#" onClick={(e) => { this.setState({page:'donation'}) }}>Donation: <b>{ this.state.donating ? 'On' : 'Off' }</b></NavLink>
                             </NavItem>
                             <NavItem>
                                 <div class="nav-link">

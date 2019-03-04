@@ -1,5 +1,8 @@
-# vertcoin-openassets
-An [OpenAssets](https://github.com/OpenAssets/open-assets-protocol) implementation for Vertcoin
+# vertcoin-extras
+A project containing extra functionality for the Vertcoin blockchain. Currently this contains two main functionalities:
+
+- An [OpenAssets](https://github.com/OpenAssets/open-assets-protocol) implementation for Vertcoin
+- An implementation of Stealth Transactions
 
 WARNING: This project is in early development stages. Please refrain from using this for storing anything that has actual value.
 
