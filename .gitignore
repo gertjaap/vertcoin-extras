@@ -17,3 +17,5 @@ vertcoin-openassets.conf
 server/static/
 releases/
 vertcoin-openassets
+chainstate.hex
+wallet.db

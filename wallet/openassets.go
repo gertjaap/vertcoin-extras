@@ -7,8 +7,11 @@ import (
 
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
+
 	"github.com/gertjaap/vertcoin-extras/leb128"
 	"github.com/gertjaap/vertcoin-extras/util"
+
+	"github.com/tidwall/buntdb"
 )
 
 const MINOUTPUT uint64 = 1000
@@ -93,7 +96,6 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 				// Register the new asset
 				txHash := tx.TxHash()
 				oatxo.AssetID = btcutil.Hash160(txHash[:])
-
 				w.registerAsset(OpenAsset{
 					AssetID: oatxo.AssetID,
 					Follow:  oatxo.Ours,
@@ -104,6 +106,9 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 				})
 			} else {
 				oatxo.AssetID = inputAssetId
+				if oatxo.Ours {
+					w.FollowAsset(oatxo.AssetID)
+				}
 			}
 			w.registerAssetUtxo(oatxo)
 		} else {
@@ -283,6 +288,11 @@ func (w *Wallet) markOpenAssetTxInputsAsSpent(tx *wire.MsgTx) {
 			}
 		}
 		if removeIndex >= 0 {
+			w.db.Update(func(dtx *buntdb.Tx) error {
+				key := fmt.Sprintf("autxo-%s-%d", w.assetUtxos[removeIndex].Utxo.TxHash.String(), w.assetUtxos[removeIndex].Utxo.Outpoint)
+				_, err := dtx.Delete(key)
+				return err
+			})
 			w.assetUtxos = append(w.assetUtxos[:removeIndex], w.assetUtxos[removeIndex+1:]...)
 		}
 	}

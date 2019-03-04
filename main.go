@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/gertjaap/vertcoin-extras/blockprocessor"
@@ -14,7 +13,8 @@ import (
 )
 
 func main() {
-	cfg, err := config.InitConfig()
+	configChanged := make(chan bool, 0)
+	cfg, err := config.InitConfig(configChanged)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,10 +32,18 @@ func main() {
 	}
 
 	defer client.Shutdown()
-
 	w := wallet.NewWallet(client, cfg)
 	bp := blockprocessor.NewBlockProcessor(w, client, cfg)
 	srv := server.NewHttpServer(w, cfg, bp)
+
+	go func(wal *wallet.Wallet, blp *blockprocessor.BlockProcessor, config *rpcclient.ConnConfig) {
+		for {
+			<-configChanged
+			config.Host = cfg.RpcHost
+			config.User = cfg.RpcUser
+			config.Pass = cfg.RpcPassword
+		}
+	}(w, bp, connCfg)
 
 	err = w.InitKey()
 	if err != nil {
@@ -44,10 +52,7 @@ func main() {
 
 	go bp.Loop()
 
-	go func() {
-		time.Sleep(time.Second)
-		open.Run(fmt.Sprintf("http://localhost:%d/", cfg.Port))
-	}()
+	open.Run(fmt.Sprintf("http://localhost:%d/", cfg.Port))
 
 	log.Fatal(srv.Run())
 }

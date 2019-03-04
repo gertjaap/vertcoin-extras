@@ -7,6 +7,7 @@ import (
 	"github.com/gertjaap/vertcoin-extras/blockprocessor"
 	"github.com/gertjaap/vertcoin-extras/config"
 	"github.com/gertjaap/vertcoin-extras/wallet"
+
 	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -33,6 +34,8 @@ func (h *HttpServer) Run() error {
 	r.HandleFunc("/api/addresses", h.Addresses)
 	r.HandleFunc("/api/newAsset", h.NewAsset)
 	r.HandleFunc("/api/syncStatus", h.SyncStatus)
+	r.HandleFunc("/api/rpcSettings", h.RpcSettings)
+	r.HandleFunc("/api/updateRpcSettings", h.ChangeRpcSettings)
 	r.HandleFunc("/api/network", h.Network)
 	r.HandleFunc("/api/transferAsset", h.TransferAsset)
 	r.HandleFunc("/api/assets/all", h.AllAssets)
