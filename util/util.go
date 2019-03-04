@@ -8,14 +8,13 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-	"strings"
 
 	"github.com/adiabat/bech32"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/gertjaap/vertcoin-openassets/ecies"
+	"github.com/gertjaap/vertcoin-extras/ecies"
 )
 
 func KeyHashFromPkScript(pkscript []byte) []byte {

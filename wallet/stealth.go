@@ -9,7 +9,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
-	"github.com/gertjaap/vertcoin-openassets/util"
+	"github.com/gertjaap/vertcoin-extras/util"
 	"github.com/mit-dci/lit/lnutil"
 	"github.com/tidwall/buntdb"
 )
