@@ -7,13 +7,14 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
-	"github.com/gertjaap/vertcoin-extras/config"
-	"github.com/gertjaap/vertcoin-extras/util"
+	"github.com/gertjaap/vertcoin/config"
+	"github.com/gertjaap/vertcoin/util"
 	"github.com/mit-dci/lit/bech32"
 	"github.com/tidwall/buntdb"
 )
@@ -35,7 +36,7 @@ func NewWallet(c *rpcclient.Client, conf *config.Config) *Wallet {
 	w := new(Wallet)
 	w.rpcClient = c
 	w.config = conf
-	w.db, _ = buntdb.Open("wallet.db")
+	w.db, _ = buntdb.Open(path.Join(util.DataDirectory(), "wallet.db"))
 	w.loadStuff()
 	return w
 }
@@ -85,14 +86,14 @@ func (w *Wallet) UpdateClient(c *rpcclient.Client) {
 func (w *Wallet) InitKey() error {
 	var err error
 	var privKey [32]byte
-	if _, err := os.Stat("privkey.hex"); os.IsNotExist(err) {
+	if _, err := os.Stat(path.Join(util.DataDirectory(), "privkey.hex")); os.IsNotExist(err) {
 		rand.Read(privKey[:])
-		err := ioutil.WriteFile("privkey.hex", privKey[:], 0600)
+		err := ioutil.WriteFile(path.Join(util.DataDirectory(), "privkey.hex"), privKey[:], 0600)
 		if err != nil {
 			return err
 		}
 	} else {
-		bytes, err := ioutil.ReadFile("privkey.hex")
+		bytes, err := ioutil.ReadFile(path.Join(util.DataDirectory(), "privkey.hex"))
 		if err != nil {
 			return err
 		}

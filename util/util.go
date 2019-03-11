@@ -1,7 +1,13 @@
 package util
 
 import (
+	"io"
+	"os"
+	"path"
+	"runtime"
 	"strings"
+
+	"github.com/btcsuite/fastsha256"
 
 	"bytes"
 	"crypto/rand"
@@ -14,8 +20,10 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/gertjaap/vertcoin-extras/ecies"
+	"github.com/gertjaap/vertcoin/ecies"
 )
+
+const APP_NAME = "VertcoinNext"
 
 func KeyHashFromPkScript(pkscript []byte) []byte {
 	// match p2wpkh
@@ -165,4 +173,40 @@ func (p CombinablePubKeySlice) ComboCommit() chainhash.Hash {
 		copy(combo[i*33:(i+1)*33], k.SerializeCompressed())
 	}
 	return chainhash.HashH(combo)
+}
+
+func ShaSum(file string) ([]byte, error) {
+	h := fastsha256.New()
+	fp, err := os.Open(file)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer fp.Close()
+	buf := make([]byte, 4096)
+
+	for {
+		n, err := fp.Read(buf)
+
+		if err != nil && err != io.EOF {
+			return []byte{}, err
+		}
+
+		if err == io.EOF {
+			break
+		} else {
+			h.Write(buf[:n])
+		}
+	}
+	return h.Sum(nil), nil
+}
+
+func DataDirectory() string {
+	if runtime.GOOS == "windows" {
+		return path.Join(os.Getenv("APPDATA"), APP_NAME)
+	} else if runtime.GOOS == "darwin" {
+		return path.Join(os.Getenv("HOME"), "Library", "Application Support", APP_NAME)
+	} else if runtime.GOOS == "linux" {
+		return path.Join(os.Getenv("HOME"), fmt.Sprintf(".%s", strings.ToLower(APP_NAME)))
+	}
+	return ""
 }

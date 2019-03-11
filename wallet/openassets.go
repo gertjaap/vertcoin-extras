@@ -8,8 +8,8 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 
-	"github.com/gertjaap/vertcoin-extras/leb128"
-	"github.com/gertjaap/vertcoin-extras/util"
+	"github.com/gertjaap/vertcoin/leb128"
+	"github.com/gertjaap/vertcoin/util"
 
 	"github.com/tidwall/buntdb"
 )

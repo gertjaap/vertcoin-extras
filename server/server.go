@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gertjaap/vertcoin-extras/blockprocessor"
-	"github.com/gertjaap/vertcoin-extras/config"
-	"github.com/gertjaap/vertcoin-extras/wallet"
+	"github.com/gertjaap/vertcoin/blockprocessor"
+	"github.com/gertjaap/vertcoin/config"
+	"github.com/gertjaap/vertcoin/wallet"
 
-	"github.com/gobuffalo/packr"
 	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 )
 
 type HttpServer struct {
@@ -29,7 +27,6 @@ func NewHttpServer(w *wallet.Wallet, c *config.Config, bp *blockprocessor.BlockP
 
 func (h *HttpServer) Run() error {
 	r := mux.NewRouter()
-	box := packr.NewBox("./static")
 
 	r.HandleFunc("/api/addresses", h.Addresses)
 	r.HandleFunc("/api/newAsset", h.NewAsset)
@@ -44,14 +41,6 @@ func (h *HttpServer) Run() error {
 	r.HandleFunc("/api/assets/mine", h.MyAssets)
 	r.HandleFunc("/api/assetBalance/{assetID}", h.AssetBalance)
 	r.HandleFunc("/api/balance", h.Balance)
-
-	r.PathPrefix("/").Handler(http.FileServer(box))
-
-	if h.config.Cors {
-		http.Handle("/", cors.Default().Handler(r))
-	} else {
-		http.Handle("/", r)
-	}
 
 	return http.ListenAndServe(fmt.Sprintf(":%d", h.config.Port), nil)
 }

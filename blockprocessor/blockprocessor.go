@@ -9,9 +9,9 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/gertjaap/vertcoin-extras/config"
-	"github.com/gertjaap/vertcoin-extras/util"
-	"github.com/gertjaap/vertcoin-extras/wallet"
+	"github.com/gertjaap/vertcoin/config"
+	"github.com/gertjaap/vertcoin/util"
+	"github.com/gertjaap/vertcoin/wallet"
 )
 
 type ChainIndex []*chainhash.Hash

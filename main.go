@@ -3,16 +3,22 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/gertjaap/vertcoin-extras/blockprocessor"
-	"github.com/gertjaap/vertcoin-extras/config"
-	"github.com/gertjaap/vertcoin-extras/server"
-	"github.com/gertjaap/vertcoin-extras/wallet"
-	"github.com/skratchdot/open-golang/open"
+	"github.com/gertjaap/vertcoin/blockprocessor"
+	"github.com/gertjaap/vertcoin/config"
+	"github.com/gertjaap/vertcoin/daemon"
+	"github.com/gertjaap/vertcoin/server"
+	"github.com/gertjaap/vertcoin/ui"
+	"github.com/gertjaap/vertcoin/util"
+	"github.com/gertjaap/vertcoin/wallet"
 )
 
 func main() {
+	os.Mkdir(util.DataDirectory(), 0700)
+
 	configChanged := make(chan bool, 0)
 	cfg, err := config.InitConfig(configChanged)
 	if err != nil {
@@ -51,8 +57,28 @@ func main() {
 	}
 
 	go bp.Loop()
+	go func() {
+		err := daemon.StartDaemon()
+		if err != nil {
+			fmt.Printf("Error starting daemon: %s\n", err.Error())
+		}
+	}()
+	go func() {
+		log.Fatal(srv.Run())
+	}()
 
-	open.Run(fmt.Sprintf("http://localhost:%d/", cfg.Port))
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for range c {
+			daemon.StopDaemon()
+		}
+	}()
 
-	log.Fatal(srv.Run())
+	closeChan := make(chan bool, 1)
+	go func() {
+		<-closeChan
+		daemon.StopDaemon()
+	}()
+	ui.RunUI(closeChan)
 }

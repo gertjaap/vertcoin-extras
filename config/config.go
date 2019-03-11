@@ -3,6 +3,10 @@ package config
 import (
 	"fmt"
 	"os"
+	"path"
+	"strings"
+
+	"github.com/gertjaap/vertcoin/util"
 
 	"github.com/go-ini/ini"
 )
@@ -40,9 +44,13 @@ func (c *Config) DefaultConfig() string {
 	return defaultConfig
 }
 
+func ConfigFile() string {
+	return path.Join(util.DataDirectory(), fmt.Sprintf("%s.conf", strings.ToLower(util.APP_NAME)))
+}
+
 func (c *Config) WriteDefaultsIfNotExist() error {
-	if _, err := os.Stat("vertcoin-extras.conf"); os.IsNotExist(err) {
-		f, err := os.Create("vertcoin-extras.conf")
+	if _, err := os.Stat(ConfigFile()); os.IsNotExist(err) {
+		f, err := os.Create(ConfigFile())
 		if err != nil {
 			return err
 		}
@@ -56,7 +64,7 @@ func (c *Config) WriteDefaultsIfNotExist() error {
 }
 
 func (c *Config) Read() error {
-	cfg, err := ini.Load("vertcoin-extras.conf")
+	cfg, err := ini.Load(ConfigFile())
 	if err != nil {
 		return err
 	}
@@ -94,7 +102,7 @@ func (c *Config) SetRpcCredentials(host, user, password string) error {
 	return c.Save()
 }
 func (c *Config) Save() error {
-	cfg, err := ini.Load("vertcoin-extras.conf")
+	cfg, err := ini.Load(ConfigFile())
 	if err != nil {
 		return err
 	}
@@ -109,7 +117,7 @@ func (c *Config) Save() error {
 	cfg.Section("").Key("rpcuser").SetValue(c.RpcUser)
 	cfg.Section("").Key("rpcpassword").SetValue(c.RpcPassword)
 
-	return cfg.SaveTo("vertcoin-extras.conf")
+	return cfg.SaveTo(ConfigFile())
 }
 
 func (c *Config) CheckValid() error {
