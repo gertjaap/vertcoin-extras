@@ -18,6 +18,8 @@ host/server/static/
 releases/
 chainstate.hex
 wallet.db
-vertcoin
+/vertcoin
+/cmd/vertcoin/vertcoin
+packrd
 nodes/
 client/rcc*

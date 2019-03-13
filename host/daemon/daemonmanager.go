@@ -12,14 +12,16 @@ type DaemonManager struct {
 	daemons     []*Daemon
 	daemonsLock sync.Mutex
 	stop        chan bool
+	stopped     chan bool
 }
 
 func NewDaemonManager() *DaemonManager {
-	return &DaemonManager{daemons: []*Daemon{}, daemonsLock: sync.Mutex{}, stop: make(chan bool)}
+	return &DaemonManager{daemons: []*Daemon{}, daemonsLock: sync.Mutex{}, stop: make(chan bool), stopped: make(chan bool)}
 }
 
 func (dm *DaemonManager) Stop() {
 	dm.stop <- true
+	<-dm.stopped
 }
 
 func (dm *DaemonManager) AddDaemon(coin coinparams.Coin, coinNode coinparams.CoinNode, coinNetwork coinparams.CoinNetwork) {
@@ -52,6 +54,7 @@ func (dm *DaemonManager) Loop() {
 					logging.Errorf("Error stopping daemon: %s/%s - %s\n", d.Coin.Id, d.Network.Id, err.Error())
 				}
 			}
+			dm.stopped <- true
 			return
 		default:
 			time.Sleep(time.Second * 5)
