@@ -13,10 +13,11 @@
 
 # key and conf from running this on a dev machine should not be checked in
 privkey.hex
-vertcoin-openassets.conf
-server/static/
+vertcoin.conf
+host/server/static/
 releases/
-vertcoin-openassets
 chainstate.hex
 wallet.db
-/vertcoin
+vertcoin
+nodes/
+client/rcc*

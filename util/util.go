@@ -6,6 +6,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/btcsuite/fastsha256"
 
@@ -13,6 +14,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	mathrand "math/rand"
 	"sort"
 
 	"github.com/adiabat/bech32"
@@ -21,9 +23,12 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/gertjaap/vertcoin/ecies"
+	"github.com/gertjaap/vertcoin/logging"
 )
 
 const APP_NAME = "VertcoinNext"
+
+var seededRand *mathrand.Rand = mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
 
 func KeyHashFromPkScript(pkscript []byte) []byte {
 	// match p2wpkh
@@ -43,7 +48,7 @@ func PrintTx(tx *wire.MsgTx) {
 	var buf bytes.Buffer
 
 	tx.Serialize(&buf)
-	fmt.Printf("TX: %x\n", buf.Bytes())
+	logging.Debugf("TX: %x\n", buf.Bytes())
 }
 
 func DirectWPKHScriptFromPKH(pkh [20]byte) []byte {
@@ -209,4 +214,13 @@ func DataDirectory() string {
 		return path.Join(os.Getenv("HOME"), fmt.Sprintf(".%s", strings.ToLower(APP_NAME)))
 	}
 	return ""
+}
+
+func RandomAlphaNumeric(length int) string {
+	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
 }

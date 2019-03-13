@@ -1,0 +1,104 @@
+[
+	{
+		"id":  "vtc",
+		"name": "Vertcoin",
+		"nodeExecutableName" : "vertcoind",
+		"nodes" : [
+			{
+				"version": "0.14.0",
+				"url" : "https://github.com/vertcoin-project/vertcoin-core/releases/download/0.14.0/vertcoind-v0.14.0-win64.zip",
+				"sha256" : "kpoUJtpeaWatuQ9+LwazwFBmOVtxX3tJrEAHcU4/EcE=",
+				"os" : "windows",
+				"arch" : "amd64"
+			},
+			{
+				"version": "0.14.0",
+				"url" : "https://github.com/vertcoin-project/vertcoin-core/releases/download/0.14.0/vertcoind-v0.14.0-linux-amd64.zip",
+				"sha256" : "muEzdoMG75x1HhKNNZKz6ZjlbwhCOsSW0kdEJkRu6+U=",
+				"os" : "linux",
+				"arch" : "amd64"
+			}
+		],
+		"networks" : [
+			{ 
+				"id" : "main",
+				"name" : "Main Network",
+				"daemonParameters" : "",
+				"daemonPort": 5889
+			},
+			{ 
+				"id" : "testnet",
+				"name" : "Test Network",
+				"daemonParameters" : "-testnet",
+				"daemonPort": 15889
+			},
+			{ 
+				"id" : "regtest",
+				"name" : "Regtest Network",
+				"daemonParameters" : "-regtest",
+				"generate" : true,
+				"daemonPort": 27889
+			}
+		]
+	},
+	{
+		"id": "ltc",
+		"name":"Litecoin",
+		"nodeExecutableName":"litecoind",
+		"nodes": [
+			{
+				"version": "0.16.3",
+				"url" : "https://download.litecoin.org/litecoin-0.16.3/win/litecoin-0.16.3-win64.zip",
+				"sha256" : "GVhgi1IFbQSJRRzbpPYxswEEGeqF7cknGp7+Q0GHC00=",
+				"os" : "windows",
+				"arch" : "amd64"
+			},
+			{
+				"version": "0.16.3",
+				"url" : "https://download.litecoin.org/litecoin-0.16.3/linux/litecoin-0.16.3-x86_64-linux-gnu.tar.gz",
+				"sha256" : "aG2Z0XRlKGSMLFShNj0EZDb9Fyvq2s7qgL3JMEOAWZQ=",
+				"os" : "linux",
+				"arch" : "amd64"
+			}
+		],
+		"networks" : [
+			{ 
+				"id" : "regtest",
+				"name" : "Regtest Network",
+				"daemonParameters" : "-regtest",
+				"generate" : true,
+				"daemonPort": 18444
+			}
+		]
+	},
+	{
+		"id": "btc",
+		"name":"Bitcoin",
+		"nodeExecutableName":"bitcoind",
+		"nodes": [
+			{
+				"version": "0.17.1",
+				"url" : "https://bitcoincore.org/bin/bitcoin-core-0.17.1/bitcoin-0.17.1-win64.zip",
+				"sha256" : "GrvmqhcM59gmPSYvjLCuKluzmTqs0vDH5TFq5ZX+gdc=",
+				"os" : "windows",
+				"arch" : "amd64"
+			},
+			{
+				"version": "0.17.1",
+				"url" : "https://bitcoincore.org/bin/bitcoin-core-0.17.1/bitcoin-0.17.1-x86_64-linux-gnu.tar.gz",
+				"sha256" : "U//KRYCRJ8m6M84AgFWGNBAexJ3lIkspmMSJttD8Kxc=",
+				"os" : "linux",
+				"arch" : "amd64"
+			}
+		],
+		"networks" : [
+			{ 
+				"id" : "regtest",
+				"name" : "Regtest Network",
+				"daemonParameters" : "-regtest",
+				"generate" : true,
+				"daemonPort": 18333
+			}
+		]
+	}
+]
