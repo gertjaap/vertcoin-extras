@@ -21,5 +21,7 @@ wallet.db
 /vertcoin
 /cmd/vertcoin/vertcoin
 packrd
+/cmd/vertcoin-client/vertcoin-client
+/cmd/vertcoin-host/vertcoin-host
 nodes/
 client/rcc*
