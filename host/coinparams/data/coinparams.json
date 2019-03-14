@@ -24,20 +24,49 @@
 				"id" : "main",
 				"name" : "Main Network",
 				"daemonParameters" : "",
-				"daemonPort": 5889
+				"daemonPort": 5889,
+				"genesisHash" : "TZapFfSdQLHlwoRNHuLcy5ABOpkMzqEsSS0iEQSJ8MQ=",
+				"base58PrefixPubKeyAddress" : 71,
+				"base58PrefixScriptAddress" : 5,
+				"base58PrefixSecretKey" : 128,
+				"base58PrefixExtendedPublicKey" : "BIiyHg==",
+				"base58PrefixExtendedSecretKey" : "BIit5A==",
+				"bech32Prefix" : "vtc",
+				"bech32PrefixStealth" : "svtc",
+				"bech32PrefixAssets" : "avtc"
+				
 			},
 			{ 
 				"id" : "testnet",
 				"name" : "Test Network",
 				"daemonParameters" : "-testnet",
-				"daemonPort": 15889
+				"daemonPort": 15889,
+				"genesisHash" : "zujyT+t6ZMjweRaXaqSFXeysebZ0Go7C4y4nR0l60sk=",
+				"base58PrefixPubKeyAddress" : 74,
+				"base58PrefixScriptAddress" : 196,
+				"base58PrefixSecretKey" :239,
+				"base58PrefixExtendedPublicKey" : "BDWHzw==",
+				"base58PrefixExtendedSecretKey" : "BDWDlA==",
+				"bech32Prefix" : "tvtc",
+				"bech32PrefixStealth" : "tsvtc",
+				"bech32PrefixAssets" : "tavtc"
+				
 			},
 			{ 
 				"id" : "regtest",
 				"name" : "Regtest Network",
 				"daemonParameters" : "-regtest",
 				"generate" : true,
-				"daemonPort": 27889
+				"daemonPort": 27889,
+				"genesisHash" : "I5nAsEfru9FlDWaGcgbJcxcCexoZMrxvwXzoM9xKhc4=",
+				"base58PrefixPubKeyAddress" : 74,
+				"base58PrefixScriptAddress" : 196,
+				"base58PrefixSecretKey" :239,
+				"base58PrefixExtendedPublicKey" : "BDWHzw==",
+				"base58PrefixExtendedSecretKey" : "BDWDlA==",
+				"bech32Prefix" : "rvtc",
+				"bech32PrefixStealth" : "rsvtc",
+				"bech32PrefixAssets" : "ravtc"
 			}
 		]
 	},
@@ -63,11 +92,43 @@
 		],
 		"networks" : [
 			{ 
+				"id" : "main",
+				"name" : "Main Network",
+				"daemonParameters" : "",
+				"daemonPort": 9333,
+				"genesisHash" : "Eqdl4x/9QFm62h4lGQ9umMmdlxTTNO+kGhlafn4Ev+I=",
+				"base58PrefixPubKeyAddress" : 48,
+				"base58PrefixScriptAddress" : 50,
+				"base58PrefixSecretKey" :176,
+				"base58PrefixExtendedPublicKey" : "BIiyHg==",
+				"base58PrefixExtendedSecretKey" : "BIit5A==",
+				"bech32Prefix" : "lc"
+			},
+			{ 
+				"id" : "testnet",
+				"name" : "Test Network",
+				"daemonParameters" : "-testnet",
+				"daemonPort": 19335,
+				"genesisHash" : "SWZiWksoUdn97hOeViEaDYhXX1ntgW/15qY9604+KaA=",
+				"base58PrefixPubKeyAddress" : 111,
+				"base58PrefixScriptAddress" : 58,
+				"base58PrefixSecretKey" :239,
+				"base58PrefixExtendedPublicKey" : "BDWHzw==",
+				"base58PrefixExtendedSecretKey" : "BDWDlA==",
+				"bech32Prefix" : "tltc"
+			},
+			{ 
 				"id" : "regtest",
 				"name" : "Regtest Network",
 				"daemonParameters" : "-regtest",
-				"generate" : true,
-				"daemonPort": 18444
+				"daemonPort": 19444,
+				"genesisHash" : "Uwgn84+TtD7RKvCzrSWiiNwC7XTW14V4Yt9R/FbEFvk=",
+				"base58PrefixPubKeyAddress" : 111,
+				"base58PrefixScriptAddress" : 58,
+				"base58PrefixSecretKey" :239,
+				"base58PrefixExtendedPublicKey" : "BDWHzw==",
+				"base58PrefixExtendedSecretKey" : "BDWDlA==",
+				"bech32Prefix" : "rltc"
 			}
 		]
 	},
@@ -93,11 +154,43 @@
 		],
 		"networks" : [
 			{ 
+				"id" : "main",
+				"name" : "Main Network",
+				"daemonParameters" : "",
+				"daemonPort": 8333,
+				"genesisHash" : "AAAAAAAZ1micCFrhZYMek0/3Y65GoqbBcrPxtgqM4m8=",
+				"base58PrefixPubKeyAddress" : 0,
+				"base58PrefixScriptAddress" : 5,
+				"base58PrefixSecretKey" :128,
+				"base58PrefixExtendedPublicKey" : "BIiyHg==",
+				"base58PrefixExtendedSecretKey" : "BIit5A==",
+				"bech32Prefix" : "bc"
+			},
+			{ 
+				"id" : "testnet",
+				"name" : "Test Network",
+				"daemonParameters" : "-testnet",
+				"daemonPort": 18333,
+				"genesisHash" : "AAAAAAkz6gGtDumEIJd5uq7DztkPo/QIcZUm+Nd/SUM=",
+				"base58PrefixPubKeyAddress" : 111,
+				"base58PrefixScriptAddress" : 196,
+				"base58PrefixSecretKey" :239,
+				"base58PrefixExtendedPublicKey" : "BDWHzw==",
+				"base58PrefixExtendedSecretKey" : "BDWDlA==",
+				"bech32Prefix" : "tb"
+			},
+			{ 
 				"id" : "regtest",
 				"name" : "Regtest Network",
 				"daemonParameters" : "-regtest",
-				"generate" : true,
-				"daemonPort": 18333
+				"daemonPort": 18444,
+				"genesisHash" : "D5GI8Ty3sscfKjNeOk/DKL9b60NgEq/KWQsaEUZuIgY=",
+				"base58PrefixPubKeyAddress" : 111,
+				"base58PrefixScriptAddress" : 196,
+				"base58PrefixSecretKey" :239,
+				"base58PrefixExtendedPublicKey" : "BDWHzw==",
+				"base58PrefixExtendedSecretKey" : "BDWDlA==",
+				"bech32Prefix" : "bcrt"
 			}
 		]
 	}

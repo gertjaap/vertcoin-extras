@@ -50,7 +50,7 @@ func (w *Wallet) processStealthTransaction(tx *wire.MsgTx) {
 		}
 	}
 
-	for i, out := range tx.TxOut {
+	/*for i, out := range tx.TxOut {
 		keyHash := util.KeyHashFromPkScript(out.PkScript)
 		if bytes.Equal(keyHash, w.pubKeyHash[:]) {
 			w.registerUtxo(Utxo{
@@ -60,7 +60,7 @@ func (w *Wallet) processStealthTransaction(tx *wire.MsgTx) {
 				PkScript: out.PkScript,
 			})
 		}
-	}
+	}*/
 
 	w.markTxStealthInputsAsSpent(tx)
 	w.markTxInputsAsSpent(tx)
@@ -208,12 +208,13 @@ func (w *Wallet) FindStealthUtxoFromTxIn(txi *wire.TxIn) (Utxo, *btcec.PrivateKe
 }
 
 func (w *Wallet) GetStealthPrivateKey(encOTK []byte) (*btcec.PrivateKey, error) {
-	priv, err := util.DecryptECIES(w.privateKey, encOTK)
+	/*priv, err := util.DecryptECIES(w.privateKey, encOTK)
 	if err != nil {
 		return nil, err
 	}
 
 	pk, _ := btcec.PrivKeyFromBytes(btcec.S256(), priv)
 	cpriv := util.CombinePrivateKeys(w.privateKey, pk)
-	return cpriv, nil
+	return cpriv, nil*/
+	return nil, nil
 }

@@ -23,11 +23,20 @@ type CoinNode struct {
 }
 
 type CoinNetwork struct {
-	Name             string `json:"name"`
-	Id               string `json:"id"`
-	DaemonParameters string `json:"daemonParameters"`
-	Generate         bool   `json:"generate"`
-	DaemonPort       int    `json:"daemonPort"`
+	Name                          string `json:"name"`
+	Id                            string `json:"id"`
+	DaemonParameters              string `json:"daemonParameters"`
+	Generate                      bool   `json:"generate"`
+	DaemonPort                    int    `json:"daemonPort"`
+	GenesisHash                   []byte `json:"genesisHash"`
+	Base58PrefixPubKeyAddress     byte   `json:"base58PrefixPubKeyAddress"`
+	Base58PrefixScriptAddress     byte   `json:"base58PrefixScriptAddress"`
+	Base58PrefixSecretKey         byte   `json:"base58PrefixSecretKey"`
+	Base58PrefixExtendedPublicKey []byte `json:"base58PrefixExtendedPublicKey"`
+	Base58PrefixExtendedSecretKey []byte `json:"base58PrefixExtendedSecretKey"`
+	Bech32Prefix                  string `json:"bech32Prefix"`
+	Bech32PrefixStealth           string `json:"bech32PrefixStealth"`
+	Bech32PrefixAssets            string `json:"bech32PrefixAssets"`
 }
 
 var coins []Coin

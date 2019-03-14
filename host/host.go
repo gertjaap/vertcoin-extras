@@ -1,22 +1,28 @@
 package host
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"path"
 	"runtime"
 
+	"github.com/howeyc/gopass"
+
 	"github.com/gertjaap/vertcoin/host/coinparams"
 	"github.com/gertjaap/vertcoin/host/daemon"
+	"github.com/gertjaap/vertcoin/host/wallet"
 	"github.com/gertjaap/vertcoin/logging"
 	"github.com/gertjaap/vertcoin/util"
 )
 
 type Host struct {
 	daemonManager *daemon.DaemonManager
+	passChan      chan wallet.PasswordPrompt
 }
 
-func NewHost() *Host {
-	return &Host{daemonManager: daemon.NewDaemonManager()}
+func NewHost(passChan chan wallet.PasswordPrompt) *Host {
+	return &Host{daemonManager: daemon.NewDaemonManager(), passChan: passChan}
 }
 
 func (h *Host) Stop() {
@@ -30,6 +36,47 @@ func (h *Host) Start() error {
 	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	defer logFile.Close()
 	logging.SetLogFile(logFile)
+
+	if h.passChan == nil {
+		// nil passchan means host handles it in console
+		h.passChan = make(chan wallet.PasswordPrompt)
+		go func() {
+			for {
+				passRequest := <-h.passChan
+
+				for {
+					fmt.Printf("Please enter passphrase [%s]: ", passRequest.Reason)
+					pass, err := gopass.GetPasswd()
+					if err != nil {
+						passRequest.ResponseChannel <- ""
+						close(passRequest.ResponseChannel)
+						break
+					}
+
+					if passRequest.Confirm {
+						fmt.Printf("\nPlease confirm passphrase [%s]: ", passRequest.Reason)
+						pass2, err := gopass.GetPasswd()
+						if err != nil {
+							passRequest.ResponseChannel <- ""
+							close(passRequest.ResponseChannel)
+							break
+						}
+						if !bytes.Equal(pass, pass2) {
+							fmt.Printf("\nPasswords do not match, please try again.\n\n")
+							continue
+						}
+					}
+					passRequest.ResponseChannel <- string(pass)
+					close(passRequest.ResponseChannel)
+					break
+				}
+			}
+		}()
+	}
+	key, err := wallet.NewKey(path.Join(util.DataDirectory(), "privkey.hex"), h.passChan)
+	if err != nil {
+		return err
+	}
 
 	coins, err := coinparams.Coins()
 	if err != nil {
@@ -51,7 +98,20 @@ func (h *Host) Start() error {
 		}
 	}
 
-	h.daemonManager.Loop()
+	wm := wallet.NewWalletManager()
 
+	daemons := h.daemonManager.Daemons()
+	for _, d := range daemons {
+		rpc, err := d.RpcClient()
+		if err != nil {
+			return err
+		}
+		err = wm.AddWallet(rpc, d.Network, d.Coin, key)
+		if err != nil {
+			return err
+		}
+	}
+
+	h.daemonManager.Loop()
 	return nil
 }

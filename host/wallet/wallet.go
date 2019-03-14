@@ -2,49 +2,51 @@ package wallet
 
 import (
 	"bytes"
-	"crypto/rand"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"os"
 	"path"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/gertjaap/vertcoin/host/coinparams"
+
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/gertjaap/vertcoin/config"
+	"github.com/gertjaap/vertcoin/logging"
 	"github.com/gertjaap/vertcoin/util"
-	"github.com/mit-dci/lit/bech32"
 	"github.com/tidwall/buntdb"
 )
 
 type Wallet struct {
 	rpcClient    *rpcclient.Client
-	config       *config.Config
+	coinNetwork  coinparams.CoinNetwork
+	coin         coinparams.Coin
+	key          *Key
 	utxos        []Utxo
 	stealthUtxos []StealthUtxo
 	assetUtxos   []OpenAssetUtxo
 	assets       []*OpenAsset
-	privateKey   *btcec.PrivateKey
-	pubKey       *btcec.PublicKey
-	pubKeyHash   [20]byte
 	db           *buntdb.DB
 }
 
-func NewWallet(c *rpcclient.Client, conf *config.Config) *Wallet {
+func NewWallet(c *rpcclient.Client, coinNetwork coinparams.CoinNetwork, coin coinparams.Coin, key *Key) (*Wallet, error) {
+	var err error
 	w := new(Wallet)
 	w.rpcClient = c
-	w.config = conf
-	w.db, _ = buntdb.Open(path.Join(util.DataDirectory(), "wallet.db"))
+	w.coinNetwork = coinNetwork
+	w.coin = coin
+	w.key = key
+	os.MkdirAll(path.Join(util.DataDirectory(), coin.Id, coinNetwork.Id), 0700)
+	w.db, err = buntdb.Open(path.Join(util.DataDirectory(), coin.Id, coinNetwork.Id, "wallet.db"))
+	if err != nil {
+		return nil, err
+	}
 	w.loadStuff()
-	return w
+	return w, nil
 }
 
 func (w *Wallet) loadStuff() {
 	w.db.View(func(tx *buntdb.Tx) error {
 		tx.AscendRange("", "utxo-", "utxp-", func(key, value string) bool {
-			log.Printf("Loading key %s\n", key)
+			logging.Debugf("Loading key %s\n", key)
 			w.utxos = append(w.utxos, UtxoFromBytes([]byte(value)))
 			return true
 		})
@@ -53,7 +55,7 @@ func (w *Wallet) loadStuff() {
 
 	w.db.View(func(tx *buntdb.Tx) error {
 		tx.AscendRange("", "sutxo-", "sutxp-", func(key, value string) bool {
-			log.Printf("Loading key %s\n", key)
+			logging.Debugf("Loading key %s\n", key)
 			w.stealthUtxos = append(w.stealthUtxos, StealthUtxoFromBytes([]byte(value)))
 			return true
 		})
@@ -62,7 +64,7 @@ func (w *Wallet) loadStuff() {
 
 	w.db.View(func(tx *buntdb.Tx) error {
 		tx.AscendRange("", "autxo-", "autxp-", func(key, value string) bool {
-			log.Printf("Loading key %s\n", key)
+			logging.Debugf("Loading key %s\n", key)
 			w.assetUtxos = append(w.assetUtxos, OpenAssetUtxoFromBytes([]byte(value)))
 			return true
 		})
@@ -71,7 +73,7 @@ func (w *Wallet) loadStuff() {
 
 	w.db.View(func(tx *buntdb.Tx) error {
 		tx.AscendRange("", "asset-", "asseu-", func(key, value string) bool {
-			log.Printf("Loading key %s\n", key)
+			logging.Debugf("Loading key %s\n", key)
 			w.assets = append(w.assets, OpenAssetFromBytes([]byte(value)))
 			return true
 		})
@@ -83,30 +85,9 @@ func (w *Wallet) UpdateClient(c *rpcclient.Client) {
 	w.rpcClient = &(*c)
 }
 
-func (w *Wallet) InitKey() error {
-	var err error
-	var privKey [32]byte
-	if _, err := os.Stat(path.Join(util.DataDirectory(), "privkey.hex")); os.IsNotExist(err) {
-		rand.Read(privKey[:])
-		err := ioutil.WriteFile(path.Join(util.DataDirectory(), "privkey.hex"), privKey[:], 0600)
-		if err != nil {
-			return err
-		}
-	} else {
-		bytes, err := ioutil.ReadFile(path.Join(util.DataDirectory(), "privkey.hex"))
-		if err != nil {
-			return err
-		}
-		copy(privKey[:], bytes[:])
-	}
-
-	w.privateKey, w.pubKey = btcec.PrivKeyFromBytes(btcec.S256(), privKey[:])
-	copy(w.pubKeyHash[:], btcutil.Hash160(w.pubKey.SerializeCompressed()))
-	return err
-}
-
+/*
 func (w *Wallet) VertcoinAddress() (string, error) {
-	return bech32.SegWitV0Encode(w.config.Network.VtcAddressPrefix, w.pubKeyHash[:])
+	return bech32.SegWitV0Encode(w.coinNetwork.Bech32Prefix, w.pubKeyHash[:])
 }
 
 func (w *Wallet) AssetsAddress() (string, error) {
@@ -116,6 +97,7 @@ func (w *Wallet) AssetsAddress() (string, error) {
 func (w *Wallet) StealthAddress() (string, error) {
 	return bech32.Encode(w.config.Network.StealthAddressPrefix, w.pubKey.SerializeCompressed()), nil
 }
+*/
 
 func (w *Wallet) Balance() uint64 {
 	value := uint64(0)
@@ -131,10 +113,6 @@ func (w *Wallet) StealthBalance() uint64 {
 		value += u.Utxo.Value
 	}
 	return value
-}
-
-func (w *Wallet) MyPKH() [20]byte {
-	return w.pubKeyHash
 }
 
 func (w *Wallet) AssetBalance(assetID []byte) uint64 {
@@ -180,7 +158,7 @@ func (w *Wallet) ProcessTransaction(tx *wire.MsgTx) {
 }
 
 func (w *Wallet) processNormalTransaction(tx *wire.MsgTx) {
-	for i, out := range tx.TxOut {
+	/*for i, out := range tx.TxOut {
 		keyHash := util.KeyHashFromPkScript(out.PkScript)
 		if bytes.Equal(keyHash, w.pubKeyHash[:]) {
 			w.registerUtxo(Utxo{
@@ -191,6 +169,7 @@ func (w *Wallet) processNormalTransaction(tx *wire.MsgTx) {
 			})
 		}
 	}
+	*/
 	w.markTxStealthInputsAsSpent(tx)
 	w.markTxInputsAsSpent(tx)
 }
@@ -221,7 +200,7 @@ func (w *Wallet) registerUtxo(utxo Utxo) {
 	w.utxos = append(w.utxos, utxo)
 	err := w.db.Update(func(dtx *buntdb.Tx) error {
 		key := fmt.Sprintf("utxo-%s-%d", utxo.TxHash.String(), utxo.Outpoint)
-		log.Printf("Saving key %s\n", key)
+		logging.Debugf("Saving key %s\n", key)
 		_, _, err := dtx.Set(key, string(utxo.Bytes()), nil)
 		return err
 	})
@@ -234,7 +213,7 @@ func (w *Wallet) registerStealthUtxo(utxo StealthUtxo) {
 	w.stealthUtxos = append(w.stealthUtxos, utxo)
 	err := w.db.Update(func(dtx *buntdb.Tx) error {
 		key := fmt.Sprintf("sutxo-%s-%d", utxo.Utxo.TxHash.String(), utxo.Utxo.Outpoint)
-		log.Printf("Saving key %s\n", key)
+		logging.Debugf("Saving key %s\n", key)
 		_, _, err := dtx.Set(key, string(utxo.Bytes()), nil)
 		return err
 	})
@@ -247,7 +226,7 @@ func (w *Wallet) registerAssetUtxo(utxo OpenAssetUtxo) {
 	w.assetUtxos = append(w.assetUtxos, utxo)
 	err := w.db.Update(func(dtx *buntdb.Tx) error {
 		key := fmt.Sprintf("autxo-%s-%d", utxo.Utxo.TxHash.String(), utxo.Utxo.Outpoint)
-		log.Printf("Saving key %s\n", key)
+		logging.Debugf("Saving key %s\n", key)
 		_, _, err := dtx.Set(key, string(utxo.Bytes()), nil)
 		return err
 	})
@@ -260,7 +239,7 @@ func (w *Wallet) registerAsset(asset OpenAsset) {
 	w.assets = append(w.assets, &asset)
 	err := w.db.Update(func(dtx *buntdb.Tx) error {
 		key := fmt.Sprintf("asset-%x", asset.AssetID)
-		log.Printf("Saving key %s\n", key)
+		logging.Debugf("Saving key %s\n", key)
 		_, _, err := dtx.Set(key, string((&asset).Bytes()), nil)
 		return err
 	})
@@ -312,7 +291,9 @@ func (w *Wallet) AddInputsAndChange(tx *wire.MsgTx, totalValueNeeded uint64) err
 
 	// Add change output when there's more than dust left, otherwise give to miners
 	if valueAdded-totalValueNeeded > MINOUTPUT {
-		tx.AddTxOut(wire.NewTxOut(int64(valueAdded-totalValueNeeded), util.DirectWPKHScriptFromPKH(w.MyPKH())))
+		// TODO Derive proper change address and use that
+		// tx.AddTxOut(wire.NewTxOut(int64(valueAdded-totalValueNeeded), util.DirectWPKHScriptFromPKH(w.MyPKH())))
+
 	}
 
 	return nil
@@ -339,7 +320,8 @@ func (w *Wallet) AddStealthInputsAndChange(tx *wire.MsgTx, totalValueNeeded uint
 
 	// Add change output when there's more than dust left, otherwise give to miners
 	if valueAdded-totalValueNeeded > MINOUTPUT {
-		tx.AddTxOut(wire.NewTxOut(int64(valueAdded-totalValueNeeded), util.DirectWPKHScriptFromPKH(w.MyPKH())))
+		// TODO Derive proper change address and use that
+		// tx.AddTxOut(wire.NewTxOut(int64(valueAdded-totalValueNeeded), util.DirectWPKHScriptFromPKH(w.MyPKH())))
 	}
 
 	return nil

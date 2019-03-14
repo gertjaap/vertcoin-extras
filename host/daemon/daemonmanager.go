@@ -31,6 +31,10 @@ func (dm *DaemonManager) AddDaemon(coin coinparams.Coin, coinNode coinparams.Coi
 	dm.daemonsLock.Unlock()
 }
 
+func (dm *DaemonManager) Daemons() []*Daemon {
+	return dm.daemons[:]
+}
+
 func (dm *DaemonManager) Loop() {
 	for {
 		for _, d := range dm.daemons {

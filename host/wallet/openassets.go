@@ -85,11 +85,13 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 			Value:    uint64(txo.Value),
 			PkScript: txo.PkScript,
 		}
-		keyHash := util.KeyHashFromPkScript(txo.PkScript)
+		//keyHash := util.KeyHashFromPkScript(txo.PkScript)
 
 		if amount > 0 {
 			var oatxo OpenAssetUtxo
-			oatxo.Ours = bytes.Equal(keyHash, w.pubKeyHash[:])
+			// TODO: Fix key matching by using Key lookup
+			// oatxo.Ours = bytes.Equal(keyHash, w.pubKeyHash[:])
+
 			oatxo.Utxo = utxo
 			oatxo.AssetValue = amount
 			if i < txoIndex { // Issuance
@@ -112,9 +114,10 @@ func (w *Wallet) processOpenAssetTransaction(tx *wire.MsgTx) {
 			}
 			w.registerAssetUtxo(oatxo)
 		} else {
-			if bytes.Equal(keyHash, w.pubKeyHash[:]) {
-				w.registerUtxo(utxo)
-			}
+			// TODO: Fix key matching by using Key lookup
+			// if bytes.Equal(keyHash, w.pubKeyHash[:]) {
+			//   w.registerUtxo(utxo)
+			// }
 		}
 	}
 
@@ -267,11 +270,12 @@ func (w *Wallet) addOpenAssetInputsAndChange(tx *OpenAssetTransaction, assetID [
 
 	if totalAdded > totalNeeded {
 		// Change output
-		tx.Transfers = append(tx.Transfers, OpenAssetTransferOutput{
+		// TODO: Derive proper change address
+		/* tx.Transfers = append(tx.Transfers, OpenAssetTransferOutput{
 			AssetID:      assetID,
 			RecipientPkh: w.MyPKH(),
 			Value:        totalAdded - totalNeeded,
-		})
+		})*/
 	}
 
 	return nil
