@@ -3,6 +3,12 @@ package coinparams
 import (
 	"encoding/json"
 
+	"github.com/btcsuite/btcd/btcec"
+
+	"github.com/adiabat/bech32"
+
+	"github.com/gertjaap/vertcoin/util"
+
 	"github.com/gobuffalo/packr/v2"
 )
 
@@ -29,6 +35,7 @@ type CoinNetwork struct {
 	Generate                      bool   `json:"generate"`
 	DaemonPort                    int    `json:"daemonPort"`
 	GenesisHash                   []byte `json:"genesisHash"`
+	Bip44CoinIndex                uint32 `json:"bip44"`
 	Base58PrefixPubKeyAddress     byte   `json:"base58PrefixPubKeyAddress"`
 	Base58PrefixScriptAddress     byte   `json:"base58PrefixScriptAddress"`
 	Base58PrefixSecretKey         byte   `json:"base58PrefixSecretKey"`
@@ -63,4 +70,20 @@ func Coins() ([]Coin, error) {
 		return []Coin{}, err
 	}
 	return coins, nil
+}
+
+func (cn CoinNetwork) Address(pubKey *btcec.PublicKey) string {
+	pkh := util.KeyHashFromPubKey(pubKey)
+	s, _ := bech32.SegWitV0Encode(cn.Bech32Prefix, pkh[:])
+	return s
+}
+
+func (cn CoinNetwork) AssetsAddress(pubKey *btcec.PublicKey) string {
+	pkh := util.KeyHashFromPubKey(pubKey)
+	s, _ := bech32.SegWitV0Encode(cn.Bech32PrefixAssets, pkh[:])
+	return s
+}
+
+func (cn CoinNetwork) StealthAddress(pubKey *btcec.PublicKey) string {
+	return bech32.Encode(cn.Bech32PrefixStealth, pubKey.SerializeCompressed())
 }

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btcsuite/btcutil"
+
 	"github.com/btcsuite/fastsha256"
 
 	"bytes"
@@ -42,6 +44,12 @@ func KeyHashFromPkScript(pkscript []byte) []byte {
 	}
 
 	return nil
+}
+
+func KeyHashFromPubKey(pk *btcec.PublicKey) [20]byte {
+	pkh := [20]byte{}
+	copy(pkh[:], btcutil.Hash160(pk.SerializeCompressed()))
+	return pkh
 }
 
 func PrintTx(tx *wire.MsgTx) {

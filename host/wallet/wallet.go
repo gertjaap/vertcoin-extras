@@ -27,6 +27,10 @@ type Wallet struct {
 	db           *buntdb.DB
 }
 
+func (w *Wallet) logPrefix() string {
+	return fmt.Sprintf("[%s/%s] ", w.coin.Id, w.coinNetwork.Id)
+}
+
 func NewWallet(c *rpcclient.Client, coinNetwork coinparams.CoinNetwork, coin coinparams.Coin, key *Key) (*Wallet, error) {
 	var err error
 	w := new(Wallet)
@@ -40,6 +44,14 @@ func NewWallet(c *rpcclient.Client, coinNetwork coinparams.CoinNetwork, coin coi
 		return nil, err
 	}
 	w.loadStuff()
+
+	firstPub, err := key.DerivePubKey(coinNetwork.Bip44CoinIndex, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	logging.Debugf("%sWallet initialized, first address: %s", w.logPrefix(), coinNetwork.Address(firstPub))
+
 	return w, nil
 }
 

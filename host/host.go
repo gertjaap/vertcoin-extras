@@ -7,6 +7,8 @@ import (
 	"path"
 	"runtime"
 
+	"github.com/gertjaap/vertcoin/host/config"
+
 	"github.com/howeyc/gopass"
 
 	"github.com/gertjaap/vertcoin/host/coinparams"
@@ -30,71 +32,80 @@ func (h *Host) Stop() {
 }
 
 func (h *Host) Start() error {
-	os.Mkdir(util.DataDirectory(), 0700)
 	logging.SetLogLevel(int(logging.LogLevelDebug))
+
+	if _, err := os.Stat(util.DataDirectory()); os.IsNotExist(err) {
+		logging.Debugf("Creating data directory")
+		os.MkdirAll(util.DataDirectory(), 0700)
+	}
+
 	logFilePath := path.Join(util.DataDirectory(), "vertcoin.log")
 	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	defer logFile.Close()
 	logging.SetLogFile(logFile)
 
+	logging.Debugf("Initializing config")
+	conf, err := config.InitConfig()
+	if err != nil {
+		return err
+	}
+
 	if h.passChan == nil {
 		// nil passchan means host handles it in console
 		h.passChan = make(chan wallet.PasswordPrompt)
-		go func() {
-			for {
-				passRequest := <-h.passChan
-
-				for {
-					fmt.Printf("Please enter passphrase [%s]: ", passRequest.Reason)
-					pass, err := gopass.GetPasswd()
-					if err != nil {
-						passRequest.ResponseChannel <- ""
-						close(passRequest.ResponseChannel)
-						break
-					}
-
-					if passRequest.Confirm {
-						fmt.Printf("\nPlease confirm passphrase [%s]: ", passRequest.Reason)
-						pass2, err := gopass.GetPasswd()
-						if err != nil {
-							passRequest.ResponseChannel <- ""
-							close(passRequest.ResponseChannel)
-							break
-						}
-						if !bytes.Equal(pass, pass2) {
-							fmt.Printf("\nPasswords do not match, please try again.\n\n")
-							continue
-						}
-					}
-					passRequest.ResponseChannel <- string(pass)
-					close(passRequest.ResponseChannel)
-					break
-				}
-			}
-		}()
-	}
-	key, err := wallet.NewKey(path.Join(util.DataDirectory(), "privkey.hex"), h.passChan)
-	if err != nil {
-		return err
+		go h.passwordLoop()
 	}
 
 	coins, err := coinparams.Coins()
 	if err != nil {
 		return err
 	}
-	for _, c := range coins {
-		node := coinparams.CoinNode{Hash: nil}
-		for _, n := range c.Nodes {
-			if n.Arch == runtime.GOARCH && n.Os == runtime.GOOS {
-				node = n
-				break
+
+	usedBipPaths := []uint32{}
+	for _, ed := range conf.EnabledDaemons {
+		for _, c := range coins {
+			for _, n := range c.Networks {
+				if n.Id == ed.NetworkId && c.Id == ed.CoinId {
+					usedBipPaths = append(usedBipPaths, n.Bip44CoinIndex)
+				}
 			}
 		}
+	}
 
-		if node.Hash != nil {
-			for _, n := range c.Networks {
-				h.daemonManager.AddDaemon(c, node, n)
+	key, err := wallet.NewKey(path.Join(util.DataDirectory(), "privkey.hex"), h.passChan, usedBipPaths)
+	if err != nil {
+		return err
+	}
+
+	for _, ed := range conf.EnabledDaemons {
+		started := false
+		nobinary := false
+		var node coinparams.CoinNode
+		for _, c := range coins {
+			if c.Id == ed.CoinId {
+				for _, n := range c.Nodes {
+					if n.Arch == runtime.GOARCH && n.Os == runtime.GOOS {
+						node = n
+						break
+					}
+				}
+
+				if node.Hash != nil {
+					for _, n := range c.Networks {
+						if n.Id == ed.NetworkId {
+							h.daemonManager.AddDaemon(c, node, n)
+							started = true
+						}
+					}
+				} else {
+					nobinary = true
+				}
 			}
+		}
+		if nobinary {
+			logging.Warnf("Cannot start node for network %s/%s: No compatible binary found", ed.CoinId, ed.NetworkId)
+		} else if !started {
+			logging.Warnf("Cannot start node for network %s/%s: Unknown coin or network", ed.CoinId, ed.NetworkId)
 		}
 	}
 
@@ -114,4 +125,39 @@ func (h *Host) Start() error {
 
 	h.daemonManager.Loop()
 	return nil
+}
+
+func (h *Host) passwordLoop() {
+
+	for {
+		passRequest := <-h.passChan
+
+		for {
+			fmt.Printf("Please enter passphrase [%s]: ", passRequest.Reason)
+			pass, err := gopass.GetPasswd()
+			if err != nil {
+				passRequest.ResponseChannel <- ""
+				close(passRequest.ResponseChannel)
+				break
+			}
+
+			if passRequest.Confirm {
+				fmt.Printf("\nPlease confirm passphrase [%s]: ", passRequest.Reason)
+				pass2, err := gopass.GetPasswd()
+				if err != nil {
+					passRequest.ResponseChannel <- ""
+					close(passRequest.ResponseChannel)
+					break
+				}
+				if !bytes.Equal(pass, pass2) {
+					fmt.Printf("\nPasswords do not match, please try again.\n\n")
+					continue
+				}
+			}
+			passRequest.ResponseChannel <- string(pass)
+			close(passRequest.ResponseChannel)
+			break
+		}
+	}
+
 }

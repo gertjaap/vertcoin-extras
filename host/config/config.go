@@ -1,61 +1,52 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 
-	"github.com/gertjaap/vertcoin/util"
+	"github.com/gertjaap/vertcoin/logging"
 
-	"github.com/go-ini/ini"
+	"github.com/gertjaap/vertcoin/util"
 )
 
 type Config struct {
-	rpcChanged  chan bool
-	Network     *Network
-	RpcHost     string
-	RpcUser     string
-	RpcPassword string
-	Port        uint16
-	Cors        bool
-	Donate      bool
+	EnabledDaemons []EnabledDaemonConfig
 }
 
-func InitConfig(rpcChanged chan bool) (*Config, error) {
-	c := new(Config)
-	c.rpcChanged = rpcChanged
-	err := c.Initialize()
+type EnabledDaemonConfig struct {
+	CoinId    string
+	NetworkId string
+}
+
+func InitConfig() (*Config, error) {
+	err := WriteDefaultsIfNotExist()
 	if err != nil {
 		return nil, err
 	}
-	return c, nil
+	return Read()
 }
 
-func (c *Config) DefaultConfig() string {
-	defaultConfig := ""
-	defaultConfig += "network=testnet\n"
-	defaultConfig += "rpchost=localhost:15888\n"
-	defaultConfig += "rpcuser=vtc\n"
-	defaultConfig += "rpcpassword=vtc\n"
-	defaultConfig += "port=27888\n"
-	defaultConfig += "cors=false\n"
-
-	return defaultConfig
+func DefaultConfig() *Config {
+	var cfg = new(Config)
+	cfg.EnabledDaemons = make([]EnabledDaemonConfig, 3)
+	cfg.EnabledDaemons[0] = EnabledDaemonConfig{CoinId: "vtc", NetworkId: "regtest"}
+	cfg.EnabledDaemons[1] = EnabledDaemonConfig{CoinId: "ltc", NetworkId: "regtest"}
+	cfg.EnabledDaemons[2] = EnabledDaemonConfig{CoinId: "btc", NetworkId: "regtest"}
+	return cfg
 }
 
 func ConfigFile() string {
 	return path.Join(util.DataDirectory(), fmt.Sprintf("%s.conf", strings.ToLower(util.APP_NAME)))
 }
 
-func (c *Config) WriteDefaultsIfNotExist() error {
+func WriteDefaultsIfNotExist() error {
 	if _, err := os.Stat(ConfigFile()); os.IsNotExist(err) {
-		f, err := os.Create(ConfigFile())
-		if err != nil {
-			return err
-		}
-
-		_, err = f.WriteString(c.DefaultConfig())
+		logging.Debug("Config file does not exist, creating default")
+		err = DefaultConfig().Save()
 		if err != nil {
 			return err
 		}
@@ -63,75 +54,35 @@ func (c *Config) WriteDefaultsIfNotExist() error {
 	return nil
 }
 
-func (c *Config) Read() error {
-	cfg, err := ini.Load(ConfigFile())
+func Read() (*Config, error) {
+	logging.Debugf("Reading config file: %s", ConfigFile())
+	jsonConfig, err := ioutil.ReadFile(ConfigFile())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	c.Network = GetNetwork(cfg.Section("").Key("network").String())
-	c.RpcHost = cfg.Section("").Key("rpchost").String()
-	c.RpcUser = cfg.Section("").Key("rpcuser").String()
-	c.RpcPassword = cfg.Section("").Key("rpcpassword").String()
-	c.Port = uint16(cfg.Section("").Key("port").MustInt(27888))
-	c.Cors = cfg.Section("").Key("cors").MustBool(false)
-	c.Donate = false
-
-	return nil
-}
-
-func (c *Config) Initialize() error {
-	err := c.WriteDefaultsIfNotExist()
+	c := new(Config)
+	logging.Debug("Parsing config file")
+	err = json.Unmarshal(jsonConfig, &c)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = c.Read()
-	if err != nil {
-		return err
-	}
-
-	return c.CheckValid()
+	return c, nil
 }
 
-func (c *Config) SetRpcCredentials(host, user, password string) error {
-	c.RpcHost = host
-	c.RpcUser = user
-	c.RpcPassword = password
-	c.rpcChanged <- true
-	return c.Save()
-}
 func (c *Config) Save() error {
-	cfg, err := ini.Load(ConfigFile())
+	logging.Debug("Serializing config")
+	configJson, err := json.Marshal(c)
 	if err != nil {
 		return err
 	}
-
-	if c.Donate {
-		cfg.Section("").Key("donate").SetValue("true")
-	} else {
-		cfg.Section("").Key("donate").SetValue("false")
-	}
-
-	cfg.Section("").Key("rpchost").SetValue(c.RpcHost)
-	cfg.Section("").Key("rpcuser").SetValue(c.RpcUser)
-	cfg.Section("").Key("rpcpassword").SetValue(c.RpcPassword)
-
-	return cfg.SaveTo(ConfigFile())
+	logging.Debugf("Saving config to %s", ConfigFile())
+	ioutil.WriteFile(ConfigFile(), configJson, 0700)
+	return nil
 }
 
 func (c *Config) CheckValid() error {
-	if c.Network == nil {
-		return fmt.Errorf("Network is not configured")
-	}
-	if c.RpcHost == "" {
-		return fmt.Errorf("RPC host is not configured")
-	}
-	if c.RpcUser == "" {
-		return fmt.Errorf("RPC user is not configured")
-	}
-	if c.RpcPassword == "" {
-		return fmt.Errorf("RPC password is not configured")
-	}
+
 	return nil
 }

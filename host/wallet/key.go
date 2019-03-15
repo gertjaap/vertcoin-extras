@@ -6,20 +6,19 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/gertjaap/vertcoin/logging"
+	"github.com/btcsuite/btcd/btcec"
 
 	"github.com/btcsuite/btcd/chaincfg"
-
 	"github.com/btcsuite/btcutil/hdkeychain"
 	"golang.org/x/crypto/nacl/secretbox"
 	"golang.org/x/crypto/scrypt"
 )
 
 type Key struct {
-	passwordChannel       chan PasswordPrompt     // A channel passed in to allow password prompts when needed
-	rootKey               []byte                  // Stores the root key, encrypted. Need to unlock it with relevant operations
-	plainRootPub          *hdkeychain.ExtendedKey // Stores the pubkey of the root plainly so we can derive pubkeys without needing the password
-	nonInteractiveRootKey *hdkeychain.ExtendedKey // Stores a derived root key from the root plain for online operations such as Lightning
+	passwordChannel       chan PasswordPrompt                // A channel passed in to allow password prompts when needed
+	rootKey               []byte                             // Stores the root key, encrypted. Need to unlock it with relevant operations
+	plainRootPubs         map[uint32]*hdkeychain.ExtendedKey // Stores the pubkey of the root of each coin so we can derive addresses without needing the password
+	nonInteractiveRootKey *hdkeychain.ExtendedKey            // Stores a derived root key from the root plain for online operations such as Lightning
 }
 
 type PasswordPrompt struct {
@@ -28,7 +27,7 @@ type PasswordPrompt struct {
 	ResponseChannel chan string
 }
 
-func NewKey(keyFile string, passChan chan PasswordPrompt) (*Key, error) {
+func NewKey(keyFile string, passChan chan PasswordPrompt, usedBip44Paths []uint32) (*Key, error) {
 	key := new(Key)
 	key.passwordChannel = passChan
 	var err error
@@ -88,12 +87,32 @@ func NewKey(keyFile string, passChan chan PasswordPrompt) (*Key, error) {
 
 	_, err = key.UnlockedKeyStatement("Open Wallet", func(rootKey *hdkeychain.ExtendedKey) (interface{}, error) {
 		var err error
-		key.nonInteractiveRootKey, err = rootKey.Child(20987398)
+		key.nonInteractiveRootKey, err = rootKey.Child(hdkeychain.HardenedKeyStart + 45)
 		if err != nil {
 			return nil, err
 		}
-		key.plainRootPub, err = rootKey.Neuter()
-		return nil, err
+		mainBip44, err := rootKey.Child(hdkeychain.HardenedKeyStart + 44)
+		if err != nil {
+			return nil, err
+		}
+		key.plainRootPubs = map[uint32]*hdkeychain.ExtendedKey{}
+		for _, b44 := range usedBip44Paths {
+			childKey, err := mainBip44.Child(hdkeychain.HardenedKeyStart + b44)
+			if err != nil {
+				return nil, err
+			}
+			childKey, err = childKey.Child(hdkeychain.HardenedKeyStart + 0)
+			if err != nil {
+				return nil, err
+			}
+			key.plainRootPubs[b44], err = childKey.Neuter()
+			if err != nil {
+				return nil, err
+			}
+
+		}
+		mainBip44.Zero()
+		return nil, nil
 	})
 
 	if err != nil {
@@ -101,6 +120,18 @@ func NewKey(keyFile string, passChan chan PasswordPrompt) (*Key, error) {
 	}
 
 	return key, nil
+}
+
+func (k *Key) DerivePubKey(coinIndex, index uint32) (*btcec.PublicKey, error) {
+	childKey, err := k.plainRootPubs[coinIndex].Child(0)
+	if err != nil {
+		return nil, err
+	}
+	childKey, err = childKey.Child(index)
+	if err != nil {
+		return nil, err
+	}
+	return childKey.ECPubKey()
 }
 
 func (k *Key) UnlockedKeyStatement(reason string, f func(rootKey *hdkeychain.ExtendedKey) (interface{}, error)) (interface{}, error) {
@@ -111,8 +142,6 @@ func (k *Key) UnlockedKeyStatement(reason string, f func(rootKey *hdkeychain.Ext
 
 	k.passwordChannel <- passwordPrompt
 	pass := <-passwordPrompt.ResponseChannel
-
-	logging.Debugf("Encrypted key length: %d", len(k.rootKey))
 
 	salt := new([24]byte)
 	copy(salt[:], k.rootKey[:24])
